@@ -21,7 +21,7 @@ Ce projet respecte une architecture **Client-Serveur** distribuée, séparant st
 
 [Image of client server architecture diagram]
 
-*(Insérez ici l'image de votre diagramme d'architecture ou de classes généré précédemment)*
+![Diagramme de Classes Architecture](docs/architecture_diagram.png)
 
 ### 🔌 Back-end (API & Data)
 L'intelligence de l'application réside sur le serveur.
