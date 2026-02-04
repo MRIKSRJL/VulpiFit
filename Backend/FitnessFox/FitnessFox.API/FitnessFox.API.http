@@ -1,0 +1,21 @@
+### 1. Créer une mission "Sport"
+POST http://localhost:5045/api/missions
+Content-Type: application/json
+
+{
+  "title": "Faire 20 pompes",
+  "type": "Sport",
+  "points": 50,
+  "isCompleted": false
+}
+
+### 2. Créer une mission "Nutrition"
+POST http://localhost:5045/api/missions
+Content-Type: application/json
+
+{
+  "title": "Manger 1 fruit",
+  "type": "Nutrition",
+  "points": 20,
+  "isCompleted": false
+}

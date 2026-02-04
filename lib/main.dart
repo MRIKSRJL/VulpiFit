@@ -3,9 +3,27 @@ import 'package:flutter/material.dart';
 import 'sport_screen.dart';
 import 'photo_screen.dart';
 import 'steps_screen.dart';
+import 'services/mission_service.dart';
+import 'models/mission.dart';
+void main() async { // <--- 1. Ajoutez 'async' ici
+  WidgetsFlutterBinding.ensureInitialized(); // <--- Sécurité pour Flutter
 
-void main() {
-  runApp(const FitnessFoxApp());
+  // --- LE TEST DE CONNEXION ---
+  print("🔵 TENTATIVE DE CONNEXION A L'API...");
+  try {
+    MissionService service = MissionService();
+    List<Mission> missions = await service.getMissions();
+    
+    print("🟢 SUCCÈS ! ${missions.length} missions trouvées :");
+    for (var m in missions) {
+      print(" - ${m.title} (${m.points} pts)");
+    }
+  } catch (e) {
+    print("🔴 ECHEC : $e");
+  }
+  // -------------------------
+
+  runApp(const FitnessFoxApp()); // Remplacez par le nom de votre classe principale (ex: MyApp ou FitnessFoxApp)
 }
 
 class FitnessFoxApp extends StatelessWidget {
@@ -15,13 +33,9 @@ class FitnessFoxApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Fitness Fox',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.orange,
-        scaffoldBackgroundColor: Colors.white,
-        useMaterial3: true,
-      ),
-      home: const DashboardScreen(),
+      theme: ThemeData(primarySwatch: Colors.orange),
+      home: Scaffold(body: Center(child: Text("Test API en cours... Regardez la console !"))), 
+      // ^^^ On met un écran simple juste pour le test, on remettra votre vrai écran après.
     );
   }
 }
