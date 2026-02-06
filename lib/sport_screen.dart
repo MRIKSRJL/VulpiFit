@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'services/mission_service.dart';
+import 'models/mission.dart';
 
 class SportScreen extends StatefulWidget {
   const SportScreen({super.key});
@@ -8,100 +10,89 @@ class SportScreen extends StatefulWidget {
 }
 
 class _SportScreenState extends State<SportScreen> {
-  // 1. LA MÉMOIRE (Les Données)
-  // Voici la liste de vos exercices.
-  // "isDone" permet de savoir si la case est cochée ou non.
-  final List<Map<String, dynamic>> exercises = [
-    {"name": "10 Pompes", "isDone": false},
-    {"name": "20 Squats", "isDone": false},
-    {"name": "30 sec Planche", "isDone": false},
-    {"name": "15 Jumping Jacks", "isDone": false},
-    {"name": "10 Fentes", "isDone": false},
-  ];
+  // Cette liste va contenir les missions reçues de l'API
+  late Future<List<Mission>> futureMissions;
 
-  // 2. L'ACTION
-  // Cette fonction est appelée quand on tape sur une case
-  void toggleExercise(int index) {
-    setState(() {
-      // On inverse la valeur (Vrai devient Faux, Faux devient Vrai)
-      exercises[index]['isDone'] = !exercises[index]['isDone'];
-    });
+  @override
+  void initState() {
+    super.initState();
+    // Au démarrage de l'écran, on lance le chargement des missions
+    futureMissions = MissionService.getMissions();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mission Sport 🏋️'),
-        backgroundColor: Colors.blue,
+        title: const Text('Missions Sport'),
+        backgroundColor: Colors.orange,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          children: [
-            const Text(
-              "Objectif du jour",
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 10),
-            const Text(
-              "Complétez tous les exercices pour valider la mission !",
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 30),
+      // FutureBuilder est un widget magique qui attend que les données arrivent
+      body: FutureBuilder<List<Mission>>(
+        future: futureMissions,
+        builder: (context, snapshot) {
+          // 1. Si ça charge encore, on affiche un rond qui tourne
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          } 
+          // 2. S'il y a une erreur (ex: API éteinte)
+          else if (snapshot.hasError) {
+            return Center(child: Text("Erreur: ${snapshot.error}"));
+          } 
+          // 3. Si on a des données mais que la liste est vide
+          else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return const Center(child: Text("Aucune mission de sport trouvée !"));
+          }
 
-            // 3. LA LISTE DYNAMIQUE
-            Expanded(
-              child: ListView.separated(
-                itemCount: exercises.length,
-                separatorBuilder: (ctx, i) => const SizedBox(height: 15),
-                itemBuilder: (context, index) {
-                  // On récupère l'exercice actuel
-                  final exercise = exercises[index];
-                  final isDone = exercise['isDone'] as bool;
+          // 4. Si tout est bon, on affiche la liste
+          final missions = snapshot.data!;
+          
+          return ListView.builder(
+            itemCount: missions.length,
+            itemBuilder: (context, index) {
+              final mission = missions[index];
+              // On n'affiche que les missions de type "Sport"
+              if (mission.type != "Sport") return const SizedBox.shrink();
 
-                  return InkWell(
-                    onTap: () => toggleExercise(index),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300), // Animation fluide
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        // SI c'est fait = VERT, SINON = GRIS CLAIR
-                        color: isDone ? Colors.green : Colors.grey.shade200,
-                        borderRadius: BorderRadius.circular(15),
-                        border: isDone 
-                            ? Border.all(color: Colors.green, width: 2)
-                            : Border.all(color: Colors.transparent),
+              return Card(
+                margin: const EdgeInsets.all(8.0),
+                child: ListTile(
+                  leading: Icon(
+                    mission.isCompleted ? Icons.check_circle : Icons.fitness_center,
+                    color: mission.isCompleted ? Colors.green : Colors.orange,
+                  ),
+                  title: Text(mission.title),
+                  subtitle: Text("${mission.points} points"),
+                  trailing: mission.isCompleted 
+                    ? const Text("Validé ✅") 
+                    : ElevatedButton(
+                        onPressed: () async {
+                          // 1. On change l'état localement pour que ce soit réactif
+                        setState(() {
+                          mission.isCompleted = true;
+                      });
+
+                      // 2. On envoie l'info au serveur
+                      try {
+                        await MissionService.updateMission(mission);
+                        print("Mission ${mission.title} validée en base de données !");
+                      } catch (e) {
+                        // Si ça plante, on remet comme avant et on affiche une erreur
+                      setState(() {
+                        mission.isCompleted = false;
+                      });
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text("Erreur de connexion : $e")),
+                      );
+                    }
+                  }, 
+                        child: const Text("Valider"),
                       ),
-                      child: Row(
-                        children: [
-                          // L'icône change aussi
-                          Icon(
-                            isDone ? Icons.check_circle : Icons.circle_outlined,
-                            color: isDone ? Colors.white : Colors.grey,
-                            size: 30,
-                          ),
-                          const SizedBox(width: 20),
-                          Text(
-                            exercise['name'],
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              // SI c'est fait, le texte devient blanc et barré
-                              color: isDone ? Colors.white : Colors.black87,
-                              decoration: isDone ? TextDecoration.lineThrough : null,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
   }

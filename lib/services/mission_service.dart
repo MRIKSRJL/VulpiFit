@@ -3,32 +3,38 @@ import 'package:http/http.dart' as http;
 import '../models/mission.dart';
 
 class MissionService {
-  // ATTENTION : 
-  // Si vous êtes sur Android Emulator, utilisez '10.0.2.2'
-  // Si vous êtes sur iPhone Simulator, utilisez 'localhost'
-  // Le port 5045 est celui qu'on a vu ensemble en HTTP
-  static const String baseUrl = "http://10.0.2.2:5045/api/missions";
+  // ⚠️ ATTENTION : Si tu es en USB, garde bien 127.0.0.1
+  // Si tu es en Wifi, remets ton IP (ex: 192.168.x.x)
+  static const String baseUrl = "http://127.0.0.1:5045/api/missions";
 
-  // Fonction pour récupérer la liste
-  Future<List<Mission>> getMissions() async {
-    try {
-      final response = await http.get(Uri.parse(baseUrl));
+  // 1. Récupérer les missions (GET)
+  static Future<List<Mission>> getMissions() async {
+    final response = await http.get(Uri.parse(baseUrl));
 
-      if (response.statusCode == 200) {
-        // Le serveur a répondu OK !
-        List<dynamic> body = jsonDecode(response.body);
-        
-        // On transforme la liste JSON en liste de Missions
-        List<Mission> missions = body
-            .map((dynamic item) => Mission.fromJson(item))
-            .toList();
-            
-        return missions;
-      } else {
-        throw Exception("Erreur serveur : ${response.statusCode}");
-      }
-    } catch (e) {
-      throw Exception("Impossible de se connecter à l'API : $e");
+    if (response.statusCode == 200) {
+      List<dynamic> body = jsonDecode(response.body);
+      return body.map((dynamic item) => Mission.fromJson(item)).toList();
+    } else {
+      throw Exception("Échec du chargement des missions");
+    }
+  } // <--- C'est souvent cette accolade qui manquait !
+
+  // 2. Mettre à jour une mission (PUT) - C'est la nouvelle partie
+  static Future<void> updateMission(Mission mission) async {
+    final response = await http.put(
+      Uri.parse("$baseUrl/${mission.id}"),
+      headers: {"Content-Type": "application/json"},
+      body: jsonEncode({
+        "id": mission.id,
+        "title": mission.title,
+        "type": mission.type,
+        "points": mission.points,
+        "isCompleted": mission.isCompleted,
+      }),
+    );
+
+    if (response.statusCode != 204) {
+      throw Exception("Impossible de mettre à jour la mission");
     }
   }
 }

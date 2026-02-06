@@ -12,7 +12,7 @@ void main() async { // <--- 1. Ajoutez 'async' ici
   print("🔵 TENTATIVE DE CONNEXION A L'API...");
   try {
     MissionService service = MissionService();
-    List<Mission> missions = await service.getMissions();
+    List<Mission> missions = await MissionService.getMissions();
     
     print("🟢 SUCCÈS ! ${missions.length} missions trouvées :");
     for (var m in missions) {
@@ -34,8 +34,8 @@ class FitnessFoxApp extends StatelessWidget {
     return MaterialApp(
       title: 'Fitness Fox',
       theme: ThemeData(primarySwatch: Colors.orange),
-      home: Scaffold(body: Center(child: Text("Test API en cours... Regardez la console !"))), 
-      // ^^^ On met un écran simple juste pour le test, on remettra votre vrai écran après.
+      // 👇 On a bien remis DashboardScreen ici
+      home: const DashboardScreen(), 
     );
   }
 }

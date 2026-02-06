@@ -3,7 +3,9 @@ class Mission {
   final String title;
   final String type;
   final int points;
-  final bool isCompleted;
+  
+  // 👇 J'ai enlevé le mot "final" ici pour qu'on puisse modifier l'état !
+  bool isCompleted; 
 
   Mission({
     required this.id,
@@ -13,14 +15,14 @@ class Mission {
     required this.isCompleted,
   });
 
-  // Cette fonction magique transforme le JSON reçu de l'API en Objet Flutter
+  // Pour convertir le JSON reçu de l'API en objet Dart
   factory Mission.fromJson(Map<String, dynamic> json) {
     return Mission(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? 'Sans titre',
-      type: json['type'] ?? 'Général',
-      points: json['points'] ?? 0,
-      isCompleted: json['isCompleted'] ?? false,
+      id: json['id'],
+      title: json['title'],
+      type: json['type'],
+      points: json['points'],
+      isCompleted: json['isCompleted'],
     );
   }
 }
