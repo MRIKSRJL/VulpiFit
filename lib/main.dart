@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 // On importe vos nouveaux écrans pour que main.dart les connaisse
 import 'sport_screen.dart';
+import 'profile_screen.dart';
+import 'mental_screen.dart';
+import 'nutrition_screen.dart';
 import 'photo_screen.dart';
 import 'steps_screen.dart';
 import 'services/mission_service.dart';
@@ -50,6 +53,15 @@ class DashboardScreen extends StatelessWidget {
         backgroundColor: Colors.orange,
         title: const Text('Fitness Fox 🦊', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
+        // 👇 AJOUT DU BOUTON PROFIL ICI
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle, color: Colors.white, size: 30),
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const ProfileScreen()));
+            },
+          )
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(20.0),
@@ -75,26 +87,27 @@ class DashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 15),
 
-            // Bouton 2 : REPAS
+            // Bouton 2 : NUTRITION (Modifié)
             MissionButton(
-              title: "Photo Repas",
-              icon: Icons.camera_alt,
+              title: "Nutrition",       // On change le titre
+              icon: Icons.restaurant,   // On change l'icône (Fourchette/Couteau)
               color: Colors.green.shade100,
               iconColor: Colors.green,
               onTap: () {
-                 Navigator.push(context, MaterialPageRoute(builder: (context) => const PhotoScreen()));
+                // 👇 C'est ici qu'on branche ton nouvel écran !
+                Navigator.push(context, MaterialPageRoute(builder: (context) => const NutritionScreen()));
               },
             ),
-            const SizedBox(height: 15),
 
             // Bouton 3 : PAS
+            // Bouton 3 : MENTAL
             MissionButton(
-              title: "Objectif Pas",
-              icon: Icons.directions_walk,
+              title: "Mental",
+              icon: Icons.psychology, // Ou Icons.self_improvement
               color: Colors.purple.shade100,
               iconColor: Colors.purple,
               onTap: () {
-                 Navigator.push(context, MaterialPageRoute(builder: (context) => const StepsScreen()));
+                 Navigator.push(context, MaterialPageRoute(builder: (context) => const MentalScreen()));
               },
             ),
           ],
