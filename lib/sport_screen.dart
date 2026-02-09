@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/mission_service.dart'; // 👈 On importe le bon fichier
-import '../models/mission.dart'; // Vérifie que le chemin est bon
+import '../services/mission_service.dart'; // 👈 On importe le service
+import '../models/mission.dart';
 
 class SportScreen extends StatefulWidget {
   const SportScreen({super.key});
@@ -15,43 +15,52 @@ class _SportScreenState extends State<SportScreen> {
   @override
   void initState() {
     super.initState();
-    // 👇 On utilise le nom de ta classe réelle
-    futureMissions = MissionService.getMissions(); 
+    _chargerMissions();
   }
 
-  void _toggleMission(Mission mission) async {
-    bool etaitValidee = mission.isCompleted;
+  void _chargerMissions() {
+    setState(() {
+      futureMissions = MissionService.getMissions();
+    });
+  }
 
-    // Mise à jour visuelle immédiate
+  // 👇 C'EST ICI QUE LA MAGIE OPÈRE
+  void _toggleMission(Mission mission) async {
+    print("👉 CLIC DÉTECTÉ SUR : ${mission.title}"); // Mouchard 1
+
+    bool etaitDejaFaite = mission.isCompleted;
+
+    // 1. On change visuellement tout de suite pour que ce soit réactif
     setState(() {
       mission.isCompleted = !mission.isCompleted;
     });
 
     try {
-      if (mission.isCompleted) {
-        // ✅ Validation via MissionService
-        // Note: Assure-toi que updateMission ou completeMission existe dans ton service
-        await MissionService.updateMission(mission); 
+      if (!etaitDejaFaite) {
+        // ✅ CAS 1 : On VALIDE la mission
+        print("🚀 Envoi ordre VALIDER au service...");
+        await MissionService.completeMission(mission.id);
         
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("${mission.title} validée ! 🔥"), duration: const Duration(seconds: 1)),
+          SnackBar(content: Text("${mission.title} validée ! (+${mission.points} pts) 🔥"), duration: const Duration(seconds: 1)),
         );
       } else {
-        // ↩️ Annulation via MissionService
-        // 👇 C'est ici qu'on appelle la nouvelle méthode
+        // ↩️ CAS 2 : On ANNULE la mission
+        print("↩️ Envoi ordre ANNULER au service...");
         await MissionService.undoMission(mission.id);
         
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Action annulée ↩️"), duration: Duration(seconds: 1)),
+          const SnackBar(content: Text("Action annulée. Points retirés."), duration: Duration(seconds: 1)),
         );
       }
     } catch (e) {
-      // En cas d'erreur, on annule le changement visuel
+      // ❌ En cas d'erreur, on remet comme avant
+      print("💥 ERREUR DANS L'ÉCRAN : $e");
       setState(() {
-        mission.isCompleted = etaitValidee;
+        mission.isCompleted = etaitDejaFaite;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur de connexion (Vérifie ADB) : $e")),
+        SnackBar(content: Text("Erreur de connexion : $e")),
       );
     }
   }
@@ -105,6 +114,7 @@ class _SportScreenState extends State<SportScreen> {
                     color: mission.isCompleted ? Colors.green : Colors.grey,
                   ),
                   onTap: () {
+                    // 👇 On appelle bien notre fonction connectée
                     _toggleMission(mission);
                   },
                 ),

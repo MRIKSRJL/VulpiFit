@@ -6,6 +6,6 @@
         public string Title { get; set; }       // Ex: "10 Pompes"
         public string Type { get; set; }        // Ex: "Sport" ou "Nutrition"
         public int Points { get; set; }         // Ex: 50 XP
-        public bool IsCompleted { get; set; }   // Fait ou pas fait ?
+        public bool IsCompleted { get; set; } = false;   // Fait ou pas fait ?
     }
 }
