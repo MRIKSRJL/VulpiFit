@@ -20,6 +20,36 @@ namespace FitnessFox.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Mission>>> GetMissions()
         {
+            // 1. On récupère l'utilisateur pour voir sa dernière date d'activité
+            var user = await _context.Users.FindAsync(1);
+
+            // 2. LE TEST DU MATIN ☀️
+            // Si l'utilisateur existe ET qu'il a joué avant (Date non nulle) ET que sa dernière activité n'est pas "Aujourd'hui"
+            if (user != null && user.LastActivityDate != null && user.LastActivityDate.Value.Date < DateTime.Now.Date)
+            {
+                // C'est un nouveau jour ! On doit nettoyer les missions cochées la veille.
+
+                var allMissions = await _context.Missions.ToListAsync();
+                bool nettoyageEffectue = false;
+
+                foreach (var mission in allMissions)
+                {
+                    // Si une mission est restée cochée, on la décoche
+                    if (mission.IsCompleted)
+                    {
+                        mission.IsCompleted = false;
+                        nettoyageEffectue = true;
+                    }
+                }
+
+                // Si on a nettoyé quelque chose, on sauvegarde les changements
+                if (nettoyageEffectue)
+                {
+                    await _context.SaveChangesAsync();
+                }
+            }
+
+            // 3. Maintenant que c'est propre, on envoie la liste !
             return await _context.Missions.ToListAsync();
         }
 
@@ -39,21 +69,54 @@ namespace FitnessFox.API.Controllers
             var mission = await _context.Missions.FindAsync(id);
             if (mission == null) return NotFound("Mission introuvable");
 
+            // On récupère l'utilisateur (ID 1 pour l'instant)
             var user = await _context.Users.FindAsync(1);
             if (user == null) return NotFound("Utilisateur introuvable");
 
-            // Si elle est déjà faite, on ne fait rien (pour éviter de tricher en cliquant 100 fois)
+            // Sécurité anti-spam
             if (mission.IsCompleted) return Ok(new { newScore = user.Score });
 
-            // 1. On met à jour le score
+            // --- 📅 LOGIQUE DES STREAKS (Séries) ---
+            DateTime today = DateTime.Now.Date; // La date d'aujourd'hui (sans l'heure)
+
+            // Si c'est la toute première fois qu'il joue
+            if (user.LastActivityDate == null)
+            {
+                user.CurrentStreak = 1;
+            }
+            else
+            {
+                DateTime lastDate = user.LastActivityDate.Value.Date;
+
+                if (lastDate == today)
+                {
+                    // Il a déjà joué aujourd'hui : On ne change pas la streak
+                }
+                else if (lastDate == today.AddDays(-1))
+                {
+                    // Il a joué hier : BRAVO ! La série continue 🔥
+                    user.CurrentStreak++;
+                }
+                else
+                {
+                    // Il a raté hier (ou plus) : DOMMAGE ! Retour à 1 😭
+                    user.CurrentStreak = 1;
+                }
+            }
+
+            // On met à jour la date de dernière activité
+            user.LastActivityDate = today;
+            // -----------------------------------------
+
+            // Mise à jour classique des points
             user.Score += mission.Points;
             user.TotalMissionsCompleted++;
-
-            // 2. On marque la mission comme FAITE dans la base de données
-            mission.IsCompleted = true; // 👈 C'EST CA QUI MANQUAIT !
+            mission.IsCompleted = true;
 
             await _context.SaveChangesAsync();
-            return Ok(new { newScore = user.Score });
+
+            // 👇 On renvoie aussi la streak au téléphone pour l'afficher !
+            return Ok(new { newScore = user.Score, newStreak = user.CurrentStreak });
         }
 
         // 4. POST: api/missions/{id}/undo (ANNULER ↩️)

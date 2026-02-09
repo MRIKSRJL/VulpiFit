@@ -46,26 +46,30 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // 1. 👇 LA VARIABLE QUI STOCKE LE SCORE
+  // 1. 👇 ON AJOUTE LA VARIABLE STREAK
   int score = 0;
+  int streak = 0; 
 
   @override
   void initState() {
     super.initState();
-    // 2. 👇 ON CHARGE LE SCORE DÈS LE DÉMARRAGE
     _loadUserData();
   }
 
-  // 3. 👇 LA FONCTION QUI VA CHERCHER LES DONNÉES
+  // 2. 👇 ON UTILISE LA NOUVELLE FONCTION QUI RÉCUPÈRE TOUT (Score + Streak)
   void _loadUserData() async {
     try {
-      int nouveauScore = await MissionService.getScore();
+      // On appelle la fonction qu'on a créée dans l'étape 3
+      var stats = await MissionService.getUserStats();
+      
       setState(() {
-        score = nouveauScore;
+        score = stats['score']!;
+        streak = stats['streak']!; // On met à jour la flamme
       });
-      print("Score mis à jour : $score");
+      
+      print("Données mises à jour : Score=$score, Streak=$streak");
     } catch (e) {
-      print("Erreur lors du chargement du score : $e");
+      print("Erreur lors du chargement des données : $e");
     }
   }
 
@@ -93,10 +97,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 20),
             const Text('Ton Score Actuel', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
             
-            // 4. 👇 ICI ON AFFICHE LE VRAI SCORE !
             Text(
-              '$score Points 🔥', 
-              style: const TextStyle(fontSize: 24, color: Colors.orange, fontWeight: FontWeight.bold)
+              '$score Points', 
+              style: const TextStyle(fontSize: 40, color: Colors.orange, fontWeight: FontWeight.bold) // J'ai grossi un peu le score
+            ),
+
+            // 3. 👇 L'AFFICHAGE DE LA FLAMME 🔥
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.local_fire_department, color: Colors.deepOrange, size: 30),
+                const SizedBox(width: 5),
+                Text(
+                  'Série : $streak Jours', 
+                  style: const TextStyle(fontSize: 18, color: Colors.deepOrange, fontWeight: FontWeight.bold)
+                ),
+              ],
             ),
             
             const SizedBox(height: 40),
@@ -110,14 +127,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: Colors.blue.shade100,
               iconColor: Colors.blue,
               onTap: () async { 
-                // On attend que l'utilisateur revienne de l'écran Sport
                 await Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => const SportScreen()),
                 );
-                
-                // 5. 👇 QUAND IL REVIENT, ON RECHARGE LE SCORE !
-                _loadUserData(); 
+                _loadUserData(); // On recharge au retour
               },
             ),
             const SizedBox(height: 15),
@@ -130,20 +144,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
               iconColor: Colors.green,
               onTap: () async {
                  await Navigator.push(context, MaterialPageRoute(builder: (context) => const NutritionScreen()));
-                 _loadUserData(); // On recharge aussi ici au cas où
+                 _loadUserData(); 
               },
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 15),
 
             // Bouton 3 : MENTAL
             MissionButton(
               title: "Mental",
-              icon: Icons.psychology, 
+              icon: Icons.self_improvement, 
               color: Colors.purple.shade100,
               iconColor: Colors.purple,
               onTap: () async {
                   await Navigator.push(context, MaterialPageRoute(builder: (context) => const MentalScreen()));
-                  _loadUserData(); // On recharge aussi ici au cas où
+                  _loadUserData(); 
               },
             ),
           ],

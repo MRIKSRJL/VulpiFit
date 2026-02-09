@@ -3,29 +3,30 @@ import 'package:http/http.dart' as http;
 import '../models/mission.dart';
 
 class MissionService {
-  // ✅ On garde l'adresse qui marche avec ton câble USB
+  // L'adresse de base de ton API
   static const String baseUrl = "http://127.0.0.1:5045/api/missions";
+  static const String userUrl = "http://127.0.0.1:5045/api/Users";
 
-  // 1. GET : Récupérer les missions
+  // 1. 👇 CELLE QUI TE MANQUAIT : Récupérer la liste des missions
   static Future<List<Mission>> getMissions() async {
     try {
       final response = await http.get(Uri.parse(baseUrl));
+
       if (response.statusCode == 200) {
         List<dynamic> body = jsonDecode(response.body);
         return body.map((dynamic item) => Mission.fromJson(item)).toList();
       } else {
-        throw Exception("Échec du chargement des missions");
+        throw Exception("Erreur chargement missions");
       }
     } catch (e) {
-      throw Exception("Erreur connexion (As-tu fait 'adb reverse' ?) : $e");
+      throw Exception("Erreur connexion : $e");
     }
   }
 
-  // 2. POST : VALIDER une mission (Gagner des points 🏆)
-// 👇 REMPLACE TA FONCTION completeMission PAR CELLE-CI
+  // 2. Valider une mission (et récupérer le score)
   static Future<int> completeMission(int missionId) async {
     final String url = "$baseUrl/$missionId/complete";
-    print("📢 CLICK : Tentative de validation vers $url"); // <--- MOUCHARD 1
+    print("📢 CLICK : Tentative de validation vers $url"); 
 
     try {
       final response = await http.post(
@@ -33,7 +34,7 @@ class MissionService {
         headers: {"Content-Type": "application/json"},
       );
 
-      print("📢 RÉPONSE SERVEUR : ${response.statusCode}"); // <--- MOUCHARD 2
+      print("📢 RÉPONSE SERVEUR : ${response.statusCode}");
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -49,67 +50,54 @@ class MissionService {
     }
   }
 
-  // 3. POST : ANNULER une mission (Perdre des points ↩️)
-static Future<int> undoMission(int missionId) async {
+  // 3. Annuler une mission (Undo)
+  static Future<int> undoMission(int missionId) async {
     final String url = "$baseUrl/$missionId/undo";
-    print("📢 APPEL API : $url"); // <--- LE MOUCHARD
+    print("📢 ANNULATION vers $url");
 
     final response = await http.post(
       Uri.parse(url),
       headers: {'Content-Type': 'application/json'},
     );
 
-    print("📢 RÉPONSE CODE : ${response.statusCode}"); // <--- LE DEUXIÈME MOUCHARD
-    
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       return data['newScore'];
     } else {
-      print("❌ ERREUR CORPS : ${response.body}");
       throw Exception('Erreur annulation');
     }
   }
-  
-  // (Optionnel) updateMission peut rester si tu t'en sers ailleurs, 
-  // mais pour le score, utilise completeMission.
-  static Future<void> updateMission(Mission mission) async {
-    // ... ton ancien code PUT ...
-  }
-  // 👇 AJOUTE CETTE FONCTION à la fin de MissionService
-  
-static Future<int> getScore() async {
+
+  // 4. 👇 Récupérer les Stats complètes (Score + Streak)
+// 👇 On change <String, int> par <String, dynamic> pour pouvoir renvoyer du texte ET des chiffres
+  static Future<Map<String, dynamic>> getUserStats() async {
     try {
-      final response = await http.get(Uri.parse("http://127.0.0.1:5045/api/Users"));
+      final response = await http.get(Uri.parse(userUrl));
 
       if (response.statusCode == 200) {
         List<dynamic> users = jsonDecode(response.body);
         
-        // 👀 MOUCHARD : On affiche tout ce qu'on trouve pour comprendre
-        print("🔍 LISTE UTILISATEURS REÇUE : $users");
+        var user = users.firstWhere((u) => u['id'] == 1, orElse: () => null);
 
-        // 👇 ON CHERCHE L'UTILISATEUR N°1 (C'est lui le vrai FoxWarrior)
-        // firstWhere cherche l'élément qui a l'id 1.
-        var monUtilisateur = users.firstWhere(
-          (user) => user['id'] == 1, 
-          orElse: () => null // Si on ne le trouve pas
-        );
-
-        if (monUtilisateur != null) {
-          print("✅ Utilisateur 1 trouvé avec score : ${monUtilisateur['score']}");
-          return monUtilisateur['score'];
-        } else {
-          // Si l'ID 1 n'existe pas, on prend le premier de la liste par défaut
-          print("⚠️ Utilisateur 1 introuvable ! On prend le premier de la liste.");
-          if (users.isNotEmpty) return users[0]['score'];
+        if (user != null) {
+          return {
+            "pseudo": user['pseudo'], // ✅ On récupère le pseudo
+            "score": user['score'],
+            "streak": user['currentStreak'] ?? 0,
+            "total": user['totalMissionsCompleted'] ?? 0 // ✅ On récupère le total
+          };
         }
-        
-        return 0;
-      } else {
-        throw Exception("Erreur serveur : ${response.statusCode}");
       }
     } catch (e) {
-      print("🔴 Erreur récupération score : $e");
-      return 0; // En cas d'erreur, on affiche 0 pour ne pas faire planter l'app
+      print("Erreur stats : $e");
     }
+    // Valeurs par défaut
+    return {"pseudo": "Inconnu", "score": 0, "streak": 0, "total": 0};
+  }
+
+  // (Optionnel) Une petite fonction pour garder la compatibilité si du vieux code appelle encore getScore()
+  static Future<int> getScore() async {
+    var stats = await getUserStats();
+    return stats['score']!;
   }
 }

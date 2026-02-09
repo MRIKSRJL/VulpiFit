@@ -18,6 +18,28 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 
 var app = builder.Build();
 
+
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<FitnessFox.API.Data.ApplicationDbContext>();
+
+        // C'est cette ligne qui recrée la base si elle n'existe pas !
+        context.Database.EnsureCreated();
+
+        Console.WriteLine("? Base de données vérifiée/créée avec succès !");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"?? Erreur lors de la création de la DB : {ex.Message}");
+    }
+}
+
+
+
+
 // 2. Configurer le pipeline (L'ordre des actions)
 if (app.Environment.IsDevelopment())
 {
