@@ -1,0 +1,46 @@
+﻿@model IEnumerable<FitnessFox.Web.Models.Mission>
+
+<h2>Gestion des Missions (Admin) 🛠️</h2>
+
+<p>
+    <a asp-action="Create" class="btn btn-primary">➕ Nouvelle Mission</a>
+</p>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Titre</th>
+            <th>Type</th>
+            <th>Points</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model)
+        {
+            <tr>
+                <td>@item.Title</td>
+                <td>
+                    @if (item.Type == "Sport")
+                    {
+                        <span>🏋️ Sport</span>
+                    }
+                    else if (item.Type == "Nutrition")
+                    {
+
+                        <span>🍎 Nutrition</span>
+                    }
+                    else
+                    {
+
+                        <span>🧠 Mental</span>
+                    }
+                </td>
+                <td>@item.Points pts</td>
+                <td>
+                    <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-danger btn-sm" onclick="return confirm('Sûr ?');">🗑️ Supprimer</a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

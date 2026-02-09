@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="FitnessFox.API/FitnessFox.API.csproj" />
+  <Project Path="FitnessFox.Web/FitnessFox.Web.csproj" Id="bf0460ab-ae3d-4490-901a-aaa54eeee638" />
 </Solution>
