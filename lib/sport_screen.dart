@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'services/mission_service.dart';
-import 'models/mission.dart';
+import '../services/mission_service.dart'; // 👈 On importe le bon fichier
+import '../models/mission.dart'; // Vérifie que le chemin est bon
 
 class SportScreen extends StatefulWidget {
   const SportScreen({super.key});
@@ -10,84 +10,103 @@ class SportScreen extends StatefulWidget {
 }
 
 class _SportScreenState extends State<SportScreen> {
-  // Cette liste va contenir les missions reçues de l'API
   late Future<List<Mission>> futureMissions;
 
   @override
   void initState() {
     super.initState();
-    // Au démarrage de l'écran, on lance le chargement des missions
-    futureMissions = MissionService.getMissions();
+    // 👇 On utilise le nom de ta classe réelle
+    futureMissions = MissionService.getMissions(); 
+  }
+
+  void _toggleMission(Mission mission) async {
+    bool etaitValidee = mission.isCompleted;
+
+    // Mise à jour visuelle immédiate
+    setState(() {
+      mission.isCompleted = !mission.isCompleted;
+    });
+
+    try {
+      if (mission.isCompleted) {
+        // ✅ Validation via MissionService
+        // Note: Assure-toi que updateMission ou completeMission existe dans ton service
+        await MissionService.updateMission(mission); 
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("${mission.title} validée ! 🔥"), duration: const Duration(seconds: 1)),
+        );
+      } else {
+        // ↩️ Annulation via MissionService
+        // 👇 C'est ici qu'on appelle la nouvelle méthode
+        await MissionService.undoMission(mission.id);
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Action annulée ↩️"), duration: Duration(seconds: 1)),
+        );
+      }
+    } catch (e) {
+      // En cas d'erreur, on annule le changement visuel
+      setState(() {
+        mission.isCompleted = etaitValidee;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Erreur de connexion (Vérifie ADB) : $e")),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Missions Sport'),
+        title: const Text('Missions Sport 🏋️'),
         backgroundColor: Colors.orange,
       ),
-      // FutureBuilder est un widget magique qui attend que les données arrivent
       body: FutureBuilder<List<Mission>>(
         future: futureMissions,
         builder: (context, snapshot) {
-          // 1. Si ça charge encore, on affiche un rond qui tourne
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
-          } 
-          // 2. S'il y a une erreur (ex: API éteinte)
-          else if (snapshot.hasError) {
+          } else if (snapshot.hasError) {
             return Center(child: Text("Erreur: ${snapshot.error}"));
-          } 
-          // 3. Si on a des données mais que la liste est vide
-          else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
             return const Center(child: Text("Aucune mission de sport trouvée !"));
           }
 
-          // 4. Si tout est bon, on affiche la liste
           final missions = snapshot.data!;
-          
+          // Filtre pour ne garder que le sport
+          final sportMissions = missions.where((m) => m.type == "Sport").toList();
+
           return ListView.builder(
-            itemCount: missions.length,
+            itemCount: sportMissions.length,
             itemBuilder: (context, index) {
-              final mission = missions[index];
-              // On n'affiche que les missions de type "Sport"
-              if (mission.type != "Sport") return const SizedBox.shrink();
+              final mission = sportMissions[index];
 
               return Card(
-                margin: const EdgeInsets.all(8.0),
+                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                color: mission.isCompleted ? Colors.green.shade100 : Colors.white,
                 child: ListTile(
                   leading: Icon(
                     mission.isCompleted ? Icons.check_circle : Icons.fitness_center,
                     color: mission.isCompleted ? Colors.green : Colors.orange,
+                    size: 30,
                   ),
-                  title: Text(mission.title),
+                  title: Text(
+                    mission.title,
+                    style: TextStyle(
+                      decoration: mission.isCompleted ? TextDecoration.lineThrough : null,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   subtitle: Text("${mission.points} points"),
-                  trailing: mission.isCompleted 
-                    ? const Text("Validé ✅") 
-                    : ElevatedButton(
-                        onPressed: () async {
-                          // 1. On change l'état localement pour que ce soit réactif
-                        setState(() {
-                          mission.isCompleted = true;
-                      });
-
-                      // 2. On envoie l'info au serveur
-                      try {
-                        await MissionService.updateMission(mission);
-                        print("Mission ${mission.title} validée en base de données !");
-                      } catch (e) {
-                        // Si ça plante, on remet comme avant et on affiche une erreur
-                      setState(() {
-                        mission.isCompleted = false;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text("Erreur de connexion : $e")),
-                      );
-                    }
-                  }, 
-                        child: const Text("Valider"),
-                      ),
+                  trailing: Icon(
+                    mission.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
+                    color: mission.isCompleted ? Colors.green : Colors.grey,
+                  ),
+                  onTap: () {
+                    _toggleMission(mission);
+                  },
                 ),
               );
             },

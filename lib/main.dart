@@ -98,6 +98,7 @@ class DashboardScreen extends StatelessWidget {
                 Navigator.push(context, MaterialPageRoute(builder: (context) => const NutritionScreen()));
               },
             ),
+            const SizedBox(height: 20),
 
             // Bouton 3 : PAS
             // Bouton 3 : MENTAL
