@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/mission_service.dart';
+import 'package:shared_preferences/shared_preferences.dart'; 
+import 'auth_screen.dart'; 
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -28,6 +30,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       streak = int.tryParse(stats['streak'].toString()) ?? 0;
       totalMissions = int.tryParse(stats['total'].toString()) ?? 0;
     });
+  }
+
+  // FONCTION DE DÉCONNEXION
+  Future<void> _logout(BuildContext context) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); 
+
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const AuthScreen()),
+      (route) => false,
+    );
   }
 
   int _calculerNiveau() {
@@ -87,10 +103,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               padding: const EdgeInsets.all(15.0),
               child: Column(
                 children: [
-                  // Ligne 1 : Score et Streak (Cote à cote)
                   Row(
                     children: [
-                      // 👇 ICI on met Expanded car ils sont côte à côte
                       Expanded(
                         child: _buildStatCard("Score Total", "$score pts", Icons.star, Colors.amber),
                       ),
@@ -100,11 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
-                  
                   const SizedBox(height: 15),
-                  
-                  // Ligne 2 : Total Missions (Tout seul en largeur)
-                  // On le met dans une Row avec Expanded pour qu'il prenne toute la largeur
                   Row(
                     children: [
                       Expanded(
@@ -120,9 +130,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             
             // Bouton Retour
             ElevatedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               icon: const Icon(Icons.arrow_back),
               label: const Text("Retour"),
               style: ElevatedButton.styleFrom(
@@ -131,14 +139,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 12),
               ),
             ),
-            const SizedBox(height: 30), // Un peu d'espace en bas
+
+            const SizedBox(height: 15),
+
+            // BOUTON DÉCONNEXION
+            TextButton.icon(
+              onPressed: () => _logout(context),
+              icon: const Icon(Icons.logout, color: Colors.red),
+              label: const Text(
+                "Déconnexion",
+                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+
+            const SizedBox(height: 30),
           ],
         ),
       ),
     );
   }
 
-  // 👇 J'ai enlevé le "Expanded" d'ici pour éviter le crash
+  // CETTE MÉTHODE DOIT BIEN ÊTRE À L'INTÉRIEUR DE LA CLASSE _ProfileScreenState
   Widget _buildStatCard(String label, String value, IconData icon, Color color) {
     return Container(
       padding: const EdgeInsets.all(20),
@@ -146,7 +167,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 5))
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05), 
+            blurRadius: 10, 
+            offset: const Offset(0, 5)
+          )
         ],
       ),
       child: Column(
@@ -154,9 +179,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Icon(icon, size: 40, color: color),
           const SizedBox(height: 10),
           Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-          Text(label, style: const TextStyle(color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(label, style: const TextStyle(color: Colors.grey), textAlign: TextAlign.center),
         ],
       ),
     );
   }
-}
+} // <--- TRÈS IMPORTANT : L'accolade finale qui ferme tout !

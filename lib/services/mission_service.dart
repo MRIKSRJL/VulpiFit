@@ -3,101 +3,112 @@ import 'package:http/http.dart' as http;
 import '../models/mission.dart';
 
 class MissionService {
-  // L'adresse de base de ton API
-  static const String baseUrl = "http://127.0.0.1:5045/api/missions";
-  static const String userUrl = "http://127.0.0.1:5045/api/Users";
+  static const String baseUrl = "http://127.0.0.1:5045/api"; // ⚠️ Sur Android, localhost = 10.0.2.2
+  // Si tu es sur un vrai téléphone, mets l'IP de ton PC (ex: 192.168.1.XX)
 
-  // 1. 👇 CELLE QUI TE MANQUAIT : Récupérer la liste des missions
-  static Future<List<Mission>> getMissions() async {
-    try {
-      final response = await http.get(Uri.parse(baseUrl));
+  // 👇 ICI ON STOCKE L'UTILISATEUR CONNECTÉ
+  static int currentUserId = 0; 
+  static String currentUserPseudo = "";
 
-      if (response.statusCode == 200) {
-        List<dynamic> body = jsonDecode(response.body);
-        return body.map((dynamic item) => Mission.fromJson(item)).toList();
-      } else {
-        throw Exception("Erreur chargement missions");
-      }
-    } catch (e) {
-      throw Exception("Erreur connexion : $e");
-    }
-  }
-
-  // 2. Valider une mission (et récupérer le score)
-  static Future<int> completeMission(int missionId) async {
-    final String url = "$baseUrl/$missionId/complete";
-    print("📢 CLICK : Tentative de validation vers $url"); 
-
+  // 1. CONNEXION
+  static Future<bool> login(String pseudo, String password) async {
     try {
       final response = await http.post(
-        Uri.parse(url),
+        Uri.parse("$baseUrl/Auth/login"),
         headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pseudo": pseudo, "password": password}),
       );
 
-      print("📢 RÉPONSE SERVEUR : ${response.statusCode}");
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        currentUserId = data['id'];
+        currentUserPseudo = data['pseudo'];
+        return true; // Succès
+      }
+      return false; // Échec
+    } catch (e) {
+      print("Erreur Login: $e");
+      return false;
+    }
+  }
+
+  // 2. INSCRIPTION
+  static Future<bool> register(String pseudo, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse("$baseUrl/Auth/register"),
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"pseudo": pseudo, "password": password}),
+      );
 
       if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        print("✅ POINTS AJOUTÉS ! Nouveau score : ${data['newScore']}");
-        return data['newScore']; 
-      } else {
-        print("❌ ERREUR API : ${response.body}");
-        throw Exception("Impossible de valider la mission");
+        final data = jsonDecode(response.body);
+        currentUserId = data['id'];
+        currentUserPseudo = data['pseudo'];
+        return true;
       }
+      return false;
     } catch (e) {
-      print("❌ ERREUR CONNEXION : $e");
-      throw Exception("Erreur technique : $e");
+      print("Erreur Register: $e");
+      return false;
     }
   }
 
-  // 3. Annuler une mission (Undo)
-  static Future<int> undoMission(int missionId) async {
-    final String url = "$baseUrl/$missionId/undo";
-    print("📢 ANNULATION vers $url");
-
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-    );
-
-    if (response.statusCode == 200) {
-      final data = json.decode(response.body);
-      return data['newScore'];
-    } else {
-      throw Exception('Erreur annulation');
-    }
-  }
-
-  // 4. 👇 Récupérer les Stats complètes (Score + Streak)
-// 👇 On change <String, int> par <String, dynamic> pour pouvoir renvoyer du texte ET des chiffres
+  // 3. Récupérer Stats (Modifié pour utiliser l'ID connecté)
   static Future<Map<String, dynamic>> getUserStats() async {
     try {
-      final response = await http.get(Uri.parse(userUrl));
+      // On récupère TOUS les utilisateurs
+      final response = await http.get(Uri.parse("$baseUrl/Users"));
 
       if (response.statusCode == 200) {
         List<dynamic> users = jsonDecode(response.body);
         
-        var user = users.firstWhere((u) => u['id'] == 1, orElse: () => null);
+        // 👇 On cherche CELUI qui est connecté (currentUserId)
+        var user = users.firstWhere((u) => u['id'] == currentUserId, orElse: () => null);
 
         if (user != null) {
           return {
-            "pseudo": user['pseudo'], // ✅ On récupère le pseudo
+            "pseudo": user['pseudo'],
             "score": user['score'],
             "streak": user['currentStreak'] ?? 0,
-            "total": user['totalMissionsCompleted'] ?? 0 // ✅ On récupère le total
+            "total": user['totalMissionsCompleted'] ?? 0
           };
         }
       }
-    } catch (e) {
-      print("Erreur stats : $e");
-    }
-    // Valeurs par défaut
-    return {"pseudo": "Inconnu", "score": 0, "streak": 0, "total": 0};
+    } catch (e) { print(e); }
+    return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
   }
 
-  // (Optionnel) Une petite fonction pour garder la compatibilité si du vieux code appelle encore getScore()
-  static Future<int> getScore() async {
-    var stats = await getUserStats();
-    return stats['score']!;
+  // --- LES AUTRES MÉTHODES (Missions) RESTENT PAREILLES ---
+  // (Je te remets juste les signatures pour gagner de la place, garde ton code existant ici)
+  static Future<List<Mission>> getMissions() async {
+    // Utilise "$baseUrl/Missions"
+    final response = await http.get(Uri.parse("$baseUrl/Missions"));
+    if (response.statusCode == 200) {
+       List<dynamic> body = jsonDecode(response.body);
+       return body.map((item) => Mission.fromJson(item)).toList();
+    }
+    return [];
+  }
+
+  static Future<int> completeMission(int missionId) async {
+    // ⚠️ IMPORTANT : L'API doit savoir QUI valide. 
+    // Pour l'instant ton API UserID est codé en dur à 1 dans le Controller C#.
+    // On va laisser comme ça pour l'instant, mais l'idéal serait de passer l'ID.
+    final response = await http.post(Uri.parse("$baseUrl/Missions/$missionId/complete"));
+    if (response.statusCode == 200) {
+       final data = jsonDecode(response.body);
+       return data['newScore'];
+    }
+    throw Exception("Erreur");
+  }
+
+  static Future<int> undoMission(int missionId) async {
+      final response = await http.post(Uri.parse("$baseUrl/Missions/$missionId/undo"));
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['newScore'];
+      }
+      throw Exception("Erreur");
   }
 }

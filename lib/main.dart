@@ -8,7 +8,7 @@ import 'photo_screen.dart';
 import 'steps_screen.dart';
 import 'services/mission_service.dart'; // 👈 Important pour récupérer le score
 import 'models/mission.dart';
-
+import 'auth_screen.dart';
 void main() async { 
   WidgetsFlutterBinding.ensureInitialized(); 
 
@@ -33,7 +33,7 @@ class FitnessFoxApp extends StatelessWidget {
     return MaterialApp(
       title: 'Fitness Fox',
       theme: ThemeData(primarySwatch: Colors.orange),
-      home: const DashboardScreen(), 
+      home: const AuthScreen(), 
     );
   }
 }
