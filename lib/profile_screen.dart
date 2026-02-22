@@ -24,6 +24,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _chargerProfil() async {
     var stats = await MissionService.getUserStats();
+    if (!mounted) return; 
+
     setState(() {
       pseudo = stats['pseudo']?.toString() ?? "Inconnu";
       score = int.tryParse(stats['score'].toString()) ?? 0;

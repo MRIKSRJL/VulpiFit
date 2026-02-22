@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'main.dart'; 
 import 'services/mission_service.dart';
+import 'onboarding_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -30,11 +31,20 @@ class _AuthScreenState extends State<AuthScreen> {
     if (!mounted) return;
 
     if (success) {
-      // On redirige vers main.dart (qui gère le Dashboard)
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const DashboardScreen()),
-      );
+      // 👇 L'AIGUILLAGE EST ICI !
+      if (_isLogin) {
+        // C'est une CONNEXION : on va direct au Dashboard
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const DashboardScreen()),
+        );
+      } else {
+        // C'est une INSCRIPTION : on l'envoie sur l'Onboarding !
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const OnboardingScreen()),
+        );
+      }
     } else {
       // 👇 LE MESSAGE INTELLIGENT EST ICI
       String messageErreur = _isLogin 

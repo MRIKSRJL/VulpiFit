@@ -137,7 +137,6 @@ class MissionService {
       final url = Uri.parse('$baseUrl/Missions/Complete/$missionId?userId=$userId');
       final response = await http.post(url);
 
-      // 👇 LE NOUVEAU RADAR EST ICI 👇
       print("📩 RÉPONSE API VALIDER (Code ${response.statusCode}) : ${response.body}");
 
       return response.statusCode == 200 || response.statusCode == 204;
@@ -161,6 +160,50 @@ class MissionService {
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
       print("💥 ERREUR lors de l'annulation : $e");
+      return false;
+    }
+  }
+
+  // 👇 FONCTION ONBOARDING CORRIGÉE ET BAVARDE
+  static Future<bool> updateOnboarding(double weight, int height, String injuries, String goals) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId'); 
+
+      if (userId == null) {
+        print("🛑 Erreur : Aucun ID utilisateur trouvé en mémoire.");
+        return false;
+      }
+
+      print("📡 Envoi des données d'onboarding pour l'utilisateur $userId...");
+      
+      final bodyData = jsonEncode({
+        'Weight': weight,      // Majuscules pour s'aligner parfaitement avec l'API C#
+        'Height': height,
+        'Injuries': injuries,
+        'Goals': goals,
+      });
+      
+      print("📦 Body envoyé : $bodyData");
+
+      final response = await http.put(
+        Uri.parse('$baseUrl/Users/$userId/onboarding'),
+        headers: {'Content-Type': 'application/json'},
+        body: bodyData,
+      );
+
+      print("📨 Réponse de l'API - Code : ${response.statusCode}");
+      
+      // 200 = OK, 204 = No Content (succès mais sans texte en retour, très commun en C#)
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        print("✅ Onboarding mis à jour avec succès !");
+        return true;
+      } else {
+        print("❌ Erreur API Onboarding : ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("💥 Erreur de connexion : $e");
       return false;
     }
   }

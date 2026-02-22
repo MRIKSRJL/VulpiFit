@@ -1,7 +1,8 @@
-﻿using FitnessFox.API.Data;
-using FitnessFox.API.Models;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FitnessFox.API.Data;
+using FitnessFox.API.Models;
+using FitnessFox.API.Services;
 
 namespace FitnessFox.API.Controllers
 {
@@ -10,129 +11,105 @@ namespace FitnessFox.API.Controllers
     public class MissionsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+        private readonly GroqService _groqService;
 
-        public MissionsController(ApplicationDbContext context)
+        // On injecte le service IA proprement
+        public MissionsController(ApplicationDbContext context, GroqService groqService)
         {
             _context = context;
+            _groqService = groqService; // ✅ Maintenant ça pointe vers le bon objet !
         }
 
-        // 1. RÉCUPÉRER LES MISSIONS (Adapté à l'utilisateur)
-        // On demande : "Donne-moi les missions et dis-moi si l'utilisateur X les a faites aujourd'hui"
+        // GET: api/Missions/5
         [HttpGet("{userId}")]
         public async Task<ActionResult<IEnumerable<Mission>>> GetMissionsForUser(int userId)
         {
-            var today = DateTime.Today;
-
-            // 👇 LA MODIF EST ICI : FILTRAGE
-            // On prend les missions assignées à cet utilisateur (UserId == userId)
-            // OU les missions globales (UserId == null)
-            var userMissions = await _context.Missions
-                .Where(m => m.UserId == userId || m.UserId == null)
-                .ToListAsync();
-
-            // Le reste ne change pas (vérification si déjà fait aujourd'hui)
-            var doneTodayIds = await _context.MissionLogs
-                .Where(log => log.UserId == userId && log.DateCompleted.Date == today)
-                .Select(log => log.MissionId)
-                .ToListAsync();
-
-            foreach (var mission in userMissions)
-            {
-                mission.IsCompleted = doneTodayIds.Contains(mission.Id);
-            }
-
-            return userMissions;
-        }
-
-        [HttpPost("Complete/{id}")]
-        public async Task<IActionResult> CompleteMission(int id, [FromQuery] int userId)
-        {
-            // 1. On cherche la mission
-            var mission = await _context.Missions.FindAsync(id);
-            if (mission == null) return NotFound($"ERREUR : La mission avec l'ID {id} est introuvable en base.");
-
-            var today = DateTime.Today;
-
-            // 2. On vérifie si c'est déjà fait
-            var alreadyDone = await _context.MissionLogs
-                .AnyAsync(log => log.MissionId == id && log.UserId == userId && log.DateCompleted.Date == today);
-
-            if (alreadyDone) return BadRequest("ERREUR : Mission déjà accomplie aujourd'hui.");
-
-            // 3. On enregistre le log
-            var log = new MissionLog
-            {
-                MissionId = id,
-                UserId = userId,
-                DateCompleted = DateTime.Now
-            };
-            _context.MissionLogs.Add(log);
-
-            // 4. On met à jour l'utilisateur et son Streak
             var user = await _context.Users.FindAsync(userId);
-            if (user != null)
+            if (user == null) return NotFound("Utilisateur non trouvé.");
+
+            var today = DateTime.Today;
+
+            // 1. VÉRIFICATION : Est-ce qu'on a déjà généré les missions aujourd'hui ?
+            var dailyMissions = await _context.Missions
+                .Where(m => m.UserId == userId && m.AssignedDate.Date == today)
+                .ToListAsync();
+
+            if (dailyMissions.Any())
             {
-                user.Score += mission.Points;
-                user.TotalMissionsCompleted += 1;
-
-                if (user.LastActivityDate == null || user.CurrentStreak == 0)
-                {
-                    user.CurrentStreak = 1;
-                }
-                else if (user.LastActivityDate.Value.Date == today.AddDays(-1))
-                {
-                    user.CurrentStreak += 1;
-                }
-                else if (user.LastActivityDate.Value.Date < today.AddDays(-1))
-                {
-                    user.CurrentStreak = 1;
-                }
-
-                user.LastActivityDate = DateTime.Now;
+                return Ok(dailyMissions);
             }
-            else
+
+            // 2. CRÉATION PAR L'IA
+            Console.WriteLine($"🚀 Génération de missions IA pour le joueur {user.Pseudo}...");
+            var newMissions = await _groqService.GenerateDailyMissionsAsync(user);
+
+            // Plan de secours : Si Groq a un bug réseau
+            if (newMissions == null || !newMissions.Any())
             {
-                return NotFound($"ERREUR : L'utilisateur avec l'ID {userId} est introuvable.");
+                Console.WriteLine("⚠️ Échec IA : Utilisation des missions de secours.");
+                newMissions = new List<Mission>
+                {
+                    new Mission { Title = "Boire 2L d'eau aujourd'hui", Type = "Nutrition", Points = 10 },
+                    new Mission { Title = "Faire 15 minutes de marche active", Type = "Sport", Points = 15 },
+                    new Mission { Title = "Faire 3 minutes de respiration profonde", Type = "Mental", Points = 10 }
+                };
+            }
+
+            // 3. SAUVEGARDE 
+            foreach (var mission in newMissions)
+            {
+                mission.UserId = userId;
+                mission.AssignedDate = today;
+                mission.IsCompleted = false;
+                _context.Missions.Add(mission);
             }
 
             await _context.SaveChangesAsync();
-
-            return Ok("Mission validée avec succès !");
-        } 
-        [HttpPost("Undo/{id}")]
-            public async Task<IActionResult> UndoMission(int id, [FromQuery] int userId)
-            {
-                var today = DateTime.Today;
-
-                // On cherche le log d'aujourd'hui
-                var log = await _context.MissionLogs
-                    .FirstOrDefaultAsync(l => l.MissionId == id && l.UserId == userId && l.DateCompleted.Date == today);
-
-                if (log == null) return NotFound("Aucune validation trouvée pour aujourd'hui.");
-
-                // 1. On supprime la trace dans le journal
-                _context.MissionLogs.Remove(log);
-
-                // 👇 2. ON RETIRE LES POINTS AU JOUEUR 👇
-                var mission = await _context.Missions.FindAsync(id);
-                var user = await _context.Users.FindAsync(userId);
-
-                if (mission != null && user != null)
-                {
-                    // On retire les points (sans descendre en dessous de 0)
-                    user.Score = Math.Max(0, user.Score - mission.Points);
-
-                    // On retire 1 au compteur global
-                    user.TotalMissionsCompleted = Math.Max(0, user.TotalMissionsCompleted - 1);
-
-                    // Note: L'annulation du Streak est plus complexe, 
-                    // généralement on le laisse tel quel s'il annule une mission.
-                }
-
-                await _context.SaveChangesAsync();
-
-                return NoContent();
-            }
+            return Ok(newMissions);
         }
-    } 
 
+        // POST: api/Missions/Complete/5?userId=1
+        [HttpPost("Complete/{id}")]
+        public async Task<IActionResult> CompleteMission(int id, [FromQuery] int userId)
+        {
+            var mission = await _context.Missions.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+            if (mission == null) return NotFound();
+
+            if (!mission.IsCompleted)
+            {
+                mission.IsCompleted = true;
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    user.Score += mission.Points;
+                    user.TotalMissionsCompleted += 1;
+                }
+                await _context.SaveChangesAsync();
+            }
+            return Ok();
+        }
+
+        // POST: api/Missions/Undo/5?userId=1
+        [HttpPost("Undo/{id}")]
+        public async Task<IActionResult> UndoMission(int id, [FromQuery] int userId)
+        {
+            var mission = await _context.Missions.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
+            if (mission == null) return NotFound();
+
+            if (mission.IsCompleted)
+            {
+                mission.IsCompleted = false;
+
+                var user = await _context.Users.FindAsync(userId);
+                if (user != null)
+                {
+                    user.Score -= mission.Points;
+                    user.TotalMissionsCompleted -= 1;
+                }
+                await _context.SaveChangesAsync();
+            }
+            return Ok();
+        }
+    }
+}
