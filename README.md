@@ -44,7 +44,7 @@ L'interface utilisateur est une application mobile native.
 * **Missions Dynamiques :**
     * 🏋️ **Sport :** Séries d'exercices interactives.
     * 📸 **Nutrition :** Journal photo des repas.
-    * 👣 **Pas :** Objectif de marche quotidien (Podomètre).
+    * 🧘 **Mental :** bien être mental au quotidien.
 * **Récompenses Sonores & Visuelles :** Feedback immédiat pour l'utilisateur (confettis, sons de victoire).
 
 ## 🚀 Installation et Lancement
