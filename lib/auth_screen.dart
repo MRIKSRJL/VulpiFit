@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'main.dart'; // Pour aller au Dashboard
-import '../services/mission_service.dart';
+import 'main.dart'; 
+import 'services/mission_service.dart'; // Import correct
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -12,7 +12,7 @@ class AuthScreen extends StatefulWidget {
 class _AuthScreenState extends State<AuthScreen> {
   final TextEditingController _pseudoController = TextEditingController();
   final TextEditingController _passController = TextEditingController();
-  bool _isLogin = true; // Pour basculer entre Connexion et Inscription
+  bool _isLogin = true; 
 
   void _submit() async {
     String pseudo = _pseudoController.text;
@@ -27,15 +27,17 @@ class _AuthScreenState extends State<AuthScreen> {
       success = await MissionService.register(pseudo, pass);
     }
 
+    if (!mounted) return;
+
     if (success) {
-      // Si ça marche, on va au Dashboard !
+      // On redirige vers main.dart (qui gère le Dashboard)
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Échec ! Vérifie tes identifiants ou le pseudo.")),
+        const SnackBar(content: Text("Échec ! Vérifie tes identifiants.")),
       );
     }
   }

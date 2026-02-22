@@ -8,14 +8,14 @@ import 'photo_screen.dart';
 import 'steps_screen.dart';
 import 'services/mission_service.dart'; // 👈 Important pour récupérer le score
 import 'models/mission.dart';
-import 'auth_screen.dart';
+import 'auth_screen.dart' ;
 void main() async { 
   WidgetsFlutterBinding.ensureInitialized(); 
 
   // --- LE TEST DE CONNEXION (Tu peux le garder ou l'enlever) ---
   print("🔵 TENTATIVE DE CONNEXION A L'API...");
   try {
-    List<Mission> missions = await MissionService.getMissions();
+    List<dynamic> missions = await MissionService.getMissions();
     print("🟢 SUCCÈS ! ${missions.length} missions trouvées.");
   } catch (e) {
     print("🔴 ECHEC : $e");

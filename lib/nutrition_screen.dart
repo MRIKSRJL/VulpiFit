@@ -20,7 +20,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
 
   void _chargerMissions() {
     setState(() {
-      futureMissions = MissionService.getMissions();
+      futureMissions = MissionService.getMissions().then((data) => 
+        List<Mission>.from(data.map((item) => Mission.fromJson(item as Map<String, dynamic>)))
+      );
     });
   }
 

@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/mission.dart';
 
 class MissionService {
-  static const String baseUrl = "http://127.0.0.1:5045/api"; // ⚠️ Sur Android, localhost = 10.0.2.2
-  // Si tu es sur un vrai téléphone, mets l'IP de ton PC (ex: 192.168.1.XX)
+  // ⚠️ L'adresse de ton API
+  static const String baseUrl = "http://10.210.25.217:5045/api"; 
 
-  // 👇 ICI ON STOCKE L'UTILISATEUR CONNECTÉ
   static int currentUserId = 0; 
   static String currentUserPseudo = "";
 
@@ -23,6 +23,11 @@ class MissionService {
         final data = jsonDecode(response.body);
         currentUserId = data['id'];
         currentUserPseudo = data['pseudo'];
+        
+        // 👇 CORRECTION MAJEURE : On sauvegarde l'ID dans le téléphone !
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('userId', currentUserId);
+
         return true; // Succès
       }
       return false; // Échec
@@ -45,6 +50,11 @@ class MissionService {
         final data = jsonDecode(response.body);
         currentUserId = data['id'];
         currentUserPseudo = data['pseudo'];
+
+        // 👇 On sauvegarde aussi à l'inscription
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt('userId', currentUserId);
+
         return true;
       }
       return false;
@@ -54,17 +64,19 @@ class MissionService {
     }
   }
 
-  // 3. Récupérer Stats (Modifié pour utiliser l'ID connecté)
+  // 3. STATISTIQUES UTILISATEUR
   static Future<Map<String, dynamic>> getUserStats() async {
     try {
-      // On récupère TOUS les utilisateurs
+      final prefs = await SharedPreferences.getInstance();
+      final int? userId = prefs.getInt('userId');
+      
+      if (userId == null) return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
+
       final response = await http.get(Uri.parse("$baseUrl/Users"));
 
       if (response.statusCode == 200) {
         List<dynamic> users = jsonDecode(response.body);
-        
-        // 👇 On cherche CELUI qui est connecté (currentUserId)
-        var user = users.firstWhere((u) => u['id'] == currentUserId, orElse: () => null);
+        var user = users.firstWhere((u) => u['id'] == userId, orElse: () => null);
 
         if (user != null) {
           return {
@@ -79,36 +91,77 @@ class MissionService {
     return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
   }
 
-  // --- LES AUTRES MÉTHODES (Missions) RESTENT PAREILLES ---
-  // (Je te remets juste les signatures pour gagner de la place, garde ton code existant ici)
+  // 4. RÉCUPÉRER LES MISSIONS
   static Future<List<Mission>> getMissions() async {
-    // Utilise "$baseUrl/Missions"
-    final response = await http.get(Uri.parse("$baseUrl/Missions"));
-    if (response.statusCode == 200) {
-       List<dynamic> body = jsonDecode(response.body);
-       return body.map((item) => Mission.fromJson(item)).toList();
-    }
-    return [];
-  }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? userId = prefs.getInt('userId');
 
-  static Future<int> completeMission(int missionId) async {
-    // ⚠️ IMPORTANT : L'API doit savoir QUI valide. 
-    // Pour l'instant ton API UserID est codé en dur à 1 dans le Controller C#.
-    // On va laisser comme ça pour l'instant, mais l'idéal serait de passer l'ID.
-    final response = await http.post(Uri.parse("$baseUrl/Missions/$missionId/complete"));
-    if (response.statusCode == 200) {
-       final data = jsonDecode(response.body);
-       return data['newScore'];
-    }
-    throw Exception("Erreur");
-  }
+      print("🚨 ATTENTION : Le téléphone demande les missions pour l'ID : $userId");
 
-  static Future<int> undoMission(int missionId) async {
-      final response = await http.post(Uri.parse("$baseUrl/Missions/$missionId/undo"));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return data['newScore'];
+      if (userId == null) {
+        print("🛑 Erreur : Personne n'est connecté !");
+        return [];
       }
-      throw Exception("Erreur");
+
+      final url = Uri.parse('$baseUrl/Missions/$userId'); 
+      final response = await http.get(url);
+
+      if (response.statusCode == 200) {
+        List jsonResponse = json.decode(response.body);
+        print("🟢 SUCCÈS ! ${jsonResponse.length} missions trouvées.");
+        return jsonResponse.map((data) => Mission.fromJson(data)).toList();
+      } else {
+        print("🔴 ERREUR API : ${response.statusCode}");
+        return [];
+      }
+    } catch (e) {
+      print("💥 ERREUR CRITIQUE DANS GETMISSIONS : $e");
+      return [];
+    }
+  }
+
+  // 5. VALIDER UNE MISSION
+  static Future<bool> completeMission(int missionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? userId = prefs.getInt('userId');
+      
+      if (userId == null) {
+        print("🛑 Impossible de valider : aucun utilisateur connecté.");
+        return false;
+      }
+
+      print("📡 APPEL API VALIDER : POST $baseUrl/Missions/Complete/$missionId?userId=$userId");
+      
+      final url = Uri.parse('$baseUrl/Missions/Complete/$missionId?userId=$userId');
+      final response = await http.post(url);
+
+      // 👇 LE NOUVEAU RADAR EST ICI 👇
+      print("📩 RÉPONSE API VALIDER (Code ${response.statusCode}) : ${response.body}");
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("💥 ERREUR CRITIQUE lors de la validation : $e");
+      return false;
+    }
+  }
+
+  // 6. ANNULER UNE MISSION
+  static Future<bool> undoMission(int missionId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? userId = prefs.getInt('userId');
+
+      if (userId == null) return false;
+
+      final url = Uri.parse('$baseUrl/Missions/Undo/$missionId?userId=$userId');
+      final response = await http.post(url); 
+
+      return response.statusCode == 200 || response.statusCode == 204;
+    } catch (e) {
+      print("💥 ERREUR lors de l'annulation : $e");
+      return false;
+    }
   }
 }

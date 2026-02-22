@@ -20,7 +20,7 @@ class _SportScreenState extends State<SportScreen> {
 
   void _chargerMissions() {
     setState(() {
-      futureMissions = MissionService.getMissions();
+      futureMissions = MissionService.getMissions().then((list) => list.cast<Mission>());
     });
   }
 

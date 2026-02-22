@@ -1,66 +1,62 @@
-﻿using FitnessFox.Web.Models;
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json; // Tu devras peut-être installer ce package NuGet
-using System.Text;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Rendering; // Pour la liste déroulante
+using Microsoft.EntityFrameworkCore;        // Pour ToListAsync
+using FitnessFox.Web.Data;                  // Pour ApplicationDbContext
+using FitnessFox.Web.Models;                // Pour Mission
 
 namespace FitnessFox.Web.Controllers
 {
     public class MissionsController : Controller
     {
-        // L'adresse de ton API (vérifie le port 5045 ou autre !)
-        private readonly string _apiBaseUrl = "http://localhost:5045/api/Missions";
-        private readonly HttpClient _client;
+        // 👇 ICI : On déclare la connexion à la base de données
+        private readonly ApplicationDbContext _context;
 
-        public MissionsController()
+        // 👇 LE CONSTRUCTEUR : On injecte la connexion
+        public MissionsController(ApplicationDbContext context)
         {
-            _client = new HttpClient();
+            _context = context;
         }
 
         // 1. AFFICHER LA LISTE (GET)
         public async Task<IActionResult> Index()
         {
-            List<Mission> missions = new List<Mission>();
-
-            // On appelle l'API
-            HttpResponseMessage response = await _client.GetAsync(_apiBaseUrl);
-
-            if (response.IsSuccessStatusCode)
-            {
-                // On lit le résultat
-                string data = await response.Content.ReadAsStringAsync();
-                // On transforme le texte JSON en liste de Missions C#
-                missions = JsonConvert.DeserializeObject<List<Mission>>(data);
-            }
-
-            return View(missions);
+            // On demande directement à la base de données, plus besoin d'API ici !
+            return View(await _context.Missions.ToListAsync());
         }
 
-        // 2. AFFICHER LE FORMULAIRE DE CRÉATION
+        // 2. AFFICHER LE FORMULAIRE (GET)
         public IActionResult Create()
         {
+            // On charge la liste des joueurs pour le menu déroulant
+            // Si _context est souligné en rouge ici avant, maintenant ça marchera !
+            ViewData["Users"] = new SelectList(_context.Users, "Id", "Pseudo");
             return View();
         }
 
-        // 3. ENVOYER LA NOUVELLE MISSION (POST)
+        // 3. ENREGISTRER LA MISSION (POST)
         [HttpPost]
+        [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Mission mission)
         {
-            // On force l'ID à 0 et non complété
-            mission.Id = 0;
+            // On force les valeurs par défaut
             mission.IsCompleted = false;
 
-            string json = JsonConvert.SerializeObject(mission);
-            StringContent content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            await _client.PostAsync(_apiBaseUrl, content);
+            // On sauvegarde dans la base V5
+            _context.Add(mission);
+            await _context.SaveChangesAsync();
 
             return RedirectToAction(nameof(Index));
         }
 
-        // 4. SUPPRIMER UNE MISSION
+        // 4. SUPPRIMER (Bonus : version BDD)
         public async Task<IActionResult> Delete(int id)
         {
-            await _client.DeleteAsync($"{_apiBaseUrl}/{id}");
+            var mission = await _context.Missions.FindAsync(id);
+            if (mission != null)
+            {
+                _context.Missions.Remove(mission);
+                await _context.SaveChangesAsync();
+            }
             return RedirectToAction(nameof(Index));
         }
     }

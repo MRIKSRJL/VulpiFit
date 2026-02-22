@@ -5,7 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // CONFIGURATION DE LA BDD
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=FitnessFox_Final;Trusted_Connection=True;MultipleActiveResultSets=true"));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

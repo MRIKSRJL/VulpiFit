@@ -30,6 +30,12 @@
                 <input type="submit" value="✅ Créer" class="btn btn-success" />
                 <a asp-action="Index" class="btn btn-secondary">Retour à la liste</a>
             </div>
+            <div class="form-group">
+                <label class="control-label">Assigner à un joueur (Laisser vide pour "Tous")</label>
+                <select asp-for="UserId" class="form-control" asp-items="ViewBag.Users">
+                    <option value="">-- Mission Globale (Pour tous) --</option>
+                </select>
+            </div>
         </form>
     </div>
 </div>

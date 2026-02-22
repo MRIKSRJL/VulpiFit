@@ -7,5 +7,6 @@
         public string Type { get; set; } = string.Empty;
         public int Points { get; set; }
         public bool IsCompleted { get; set; }
+        public int? UserId { get; set; }
     }
 }

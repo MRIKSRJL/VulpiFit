@@ -1,4 +1,10 @@
+using FitnessFox.Web.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=FitnessFox_Final;Trusted_Connection=True;MultipleActiveResultSets=true"));
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
