@@ -49,23 +49,17 @@ namespace FitnessFox.API.Controllers
         {
             // 1. On cherche la mission
             var mission = await _context.Missions.FindAsync(id);
-            if (mission == null)
-            {
-                // Si elle renvoie ça, c'est que la mission n'existe pas dans la table
-                return NotFound($"ERREUR : La mission avec l'ID {id} est introuvable en base.");
-            }
+            if (mission == null) return NotFound($"ERREUR : La mission avec l'ID {id} est introuvable en base.");
 
             var today = DateTime.Today;
 
+            // 2. On vérifie si c'est déjà fait
             var alreadyDone = await _context.MissionLogs
                 .AnyAsync(log => log.MissionId == id && log.UserId == userId && log.DateCompleted.Date == today);
 
-            if (alreadyDone)
-            {
-                return BadRequest("ERREUR : Mission déjà accomplie aujourd'hui.");
-            }
+            if (alreadyDone) return BadRequest("ERREUR : Mission déjà accomplie aujourd'hui.");
 
-            // 2. On enregistre le log
+            // 3. On enregistre le log
             var log = new MissionLog
             {
                 MissionId = id,
@@ -74,14 +68,14 @@ namespace FitnessFox.API.Controllers
             };
             _context.MissionLogs.Add(log);
 
-            // 3. On met à jour l'utilisateur
+            // 4. On met à jour l'utilisateur et son Streak
             var user = await _context.Users.FindAsync(userId);
             if (user != null)
             {
                 user.Score += mission.Points;
                 user.TotalMissionsCompleted += 1;
 
-                if (user.LastActivityDate == null)
+                if (user.LastActivityDate == null || user.CurrentStreak == 0)
                 {
                     user.CurrentStreak = 1;
                 }
@@ -103,42 +97,42 @@ namespace FitnessFox.API.Controllers
 
             await _context.SaveChangesAsync();
 
-            // 200 OK avec un message de succès
             return Ok("Mission validée avec succès !");
-        }
+        } 
         [HttpPost("Undo/{id}")]
-        public async Task<IActionResult> UndoMission(int id, [FromQuery] int userId)
-        {
-            var today = DateTime.Today;
-
-            // On cherche le log d'aujourd'hui
-            var log = await _context.MissionLogs
-                .FirstOrDefaultAsync(l => l.MissionId == id && l.UserId == userId && l.DateCompleted.Date == today);
-
-            if (log == null) return NotFound("Aucune validation trouvée pour aujourd'hui.");
-
-            // 1. On supprime la trace dans le journal
-            _context.MissionLogs.Remove(log);
-
-            // 👇 2. ON RETIRE LES POINTS AU JOUEUR 👇
-            var mission = await _context.Missions.FindAsync(id);
-            var user = await _context.Users.FindAsync(userId);
-
-            if (mission != null && user != null)
+            public async Task<IActionResult> UndoMission(int id, [FromQuery] int userId)
             {
-                // On retire les points (sans descendre en dessous de 0)
-                user.Score = Math.Max(0, user.Score - mission.Points);
+                var today = DateTime.Today;
 
-                // On retire 1 au compteur global
-                user.TotalMissionsCompleted = Math.Max(0, user.TotalMissionsCompleted - 1);
+                // On cherche le log d'aujourd'hui
+                var log = await _context.MissionLogs
+                    .FirstOrDefaultAsync(l => l.MissionId == id && l.UserId == userId && l.DateCompleted.Date == today);
 
-                // Note: L'annulation du Streak est plus complexe, 
-                // généralement on le laisse tel quel s'il annule une mission.
+                if (log == null) return NotFound("Aucune validation trouvée pour aujourd'hui.");
+
+                // 1. On supprime la trace dans le journal
+                _context.MissionLogs.Remove(log);
+
+                // 👇 2. ON RETIRE LES POINTS AU JOUEUR 👇
+                var mission = await _context.Missions.FindAsync(id);
+                var user = await _context.Users.FindAsync(userId);
+
+                if (mission != null && user != null)
+                {
+                    // On retire les points (sans descendre en dessous de 0)
+                    user.Score = Math.Max(0, user.Score - mission.Points);
+
+                    // On retire 1 au compteur global
+                    user.TotalMissionsCompleted = Math.Max(0, user.TotalMissionsCompleted - 1);
+
+                    // Note: L'annulation du Streak est plus complexe, 
+                    // généralement on le laisse tel quel s'il annule une mission.
+                }
+
+                await _context.SaveChangesAsync();
+
+                return NoContent();
             }
-
-            await _context.SaveChangesAsync();
-
-            return NoContent();
         }
-    }
-}
+    } 
+

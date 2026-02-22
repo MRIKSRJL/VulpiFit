@@ -60,6 +60,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: const Text("Mon Profil"),
         backgroundColor: Colors.orange,
         elevation: 0,
+        // 👇 C'est ici qu'on ajoute le bouton en haut à droite !
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout, color: Colors.white),
+            tooltip: 'Déconnexion', // Petit texte au survol si besoin
+            onPressed: () => _logout(context),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -140,18 +148,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
 
-            const SizedBox(height: 15),
-
-            // BOUTON DÉCONNEXION
-            TextButton.icon(
-              onPressed: () => _logout(context),
-              icon: const Icon(Icons.logout, color: Colors.red),
-              label: const Text(
-                "Déconnexion",
-                style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-              ),
-            ),
-
             const SizedBox(height: 30),
           ],
         ),
@@ -185,4 +181,4 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
     );
   }
-} // <--- TRÈS IMPORTANT : L'accolade finale qui ferme tout !
+}

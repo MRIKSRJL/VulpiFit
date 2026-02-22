@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main.dart'; 
-import 'services/mission_service.dart'; // Import correct
+import 'services/mission_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -36,8 +36,16 @@ class _AuthScreenState extends State<AuthScreen> {
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
       );
     } else {
+      // 👇 LE MESSAGE INTELLIGENT EST ICI
+      String messageErreur = _isLogin 
+          ? "Échec ! Vérifie tes identifiants. 🦊" 
+          : "Ce pseudo est déjà pris ! Choisis-en un autre. 🐾";
+
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Échec ! Vérifie tes identifiants.")),
+        SnackBar(
+          content: Text(messageErreur),
+          backgroundColor: Colors.red.shade400, // Un peu de rouge pour l'erreur
+        ),
       );
     }
   }

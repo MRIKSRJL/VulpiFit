@@ -13,16 +13,18 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// BLOC DE CRÉATION AUTOMATIQUE DE LA BASE
+// BLOC DE VÉRIFICATION DE LA BASE
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-        // Cette commande supprime la base si elle existe (pour être sûr d'être propre)
-        context.Database.EnsureDeleted();
-        // Cette commande crée la base toute neuve avec la colonne Password
+
+        // ?? LIGNE SUPPRIMÉE : context.Database.EnsureDeleted();
+
+        // Cette commande crée la base uniquement si elle n'existe pas encore.
+        // Si elle existe déjà avec tes comptes et tes missions, elle la conserve intacte !
         context.Database.EnsureCreated();
     }
     catch (Exception ex)

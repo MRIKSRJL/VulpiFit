@@ -4,15 +4,15 @@ import 'sport_screen.dart';
 import 'profile_screen.dart';
 import 'mental_screen.dart';
 import 'nutrition_screen.dart';
-import 'photo_screen.dart';
-import 'steps_screen.dart';
-import 'services/mission_service.dart'; // 👈 Important pour récupérer le score
-import 'models/mission.dart';
-import 'auth_screen.dart' ;
+// import 'photo_screen.dart'; // Retire les imports inutilisés si besoin
+// import 'steps_screen.dart';
+import 'services/mission_service.dart';
+import 'auth_screen.dart';
+
 void main() async { 
   WidgetsFlutterBinding.ensureInitialized(); 
 
-  // --- LE TEST DE CONNEXION (Tu peux le garder ou l'enlever) ---
+  // --- LE TEST DE CONNEXION ---
   print("🔵 TENTATIVE DE CONNEXION A L'API...");
   try {
     List<dynamic> missions = await MissionService.getMissions();
@@ -31,6 +31,7 @@ class FitnessFoxApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Fitness Fox',
       theme: ThemeData(primarySwatch: Colors.orange),
       home: const AuthScreen(), 
@@ -46,7 +47,6 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // 1. 👇 ON AJOUTE LA VARIABLE STREAK
   int score = 0;
   int streak = 0; 
 
@@ -56,17 +56,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _loadUserData();
   }
 
-  // 2. 👇 ON UTILISE LA NOUVELLE FONCTION QUI RÉCUPÈRE TOUT (Score + Streak)
   void _loadUserData() async {
     try {
-      // On appelle la fonction qu'on a créée dans l'étape 3
       var stats = await MissionService.getUserStats();
-      
       setState(() {
         score = stats['score']!;
-        streak = stats['streak']!; // On met à jour la flamme
+        streak = stats['streak']!;
       });
-      
       print("Données mises à jour : Score=$score, Streak=$streak");
     } catch (e) {
       print("Erreur lors du chargement des données : $e");
@@ -89,76 +85,83 @@ class _DashboardScreenState extends State<DashboardScreen> {
           )
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20.0),
+      body: SafeArea( // Ajout de SafeArea pour éviter de déborder sur les encoches du téléphone
         child: Column(
           children: [
-            // --- Zone du haut (Statut) ---
-            const SizedBox(height: 20),
-            const Text('Ton Score Actuel', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            
-            Text(
-              '$score Points', 
-              style: const TextStyle(fontSize: 40, color: Colors.orange, fontWeight: FontWeight.bold) // J'ai grossi un peu le score
+            // --- Zone du haut (Statut - Fixe) ---
+            Padding(
+              padding: const EdgeInsets.only(top: 20.0, bottom: 10.0),
+              child: Column(
+                children: [
+                  const Text('Ton Score Actuel', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  Text(
+                    '$score Points', 
+                    style: const TextStyle(fontSize: 40, color: Colors.orange, fontWeight: FontWeight.bold)
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.local_fire_department, color: Colors.deepOrange, size: 30),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Série : $streak Jours', 
+                        style: const TextStyle(fontSize: 18, color: Colors.deepOrange, fontWeight: FontWeight.bold)
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
+            
+            // --- Zone des Missions (Défilable et Adaptative) ---
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 10.0),
+                child: Column(
+                  children: [
+                    MissionButton(
+                      title: "Sport",
+                      icon: Icons.fitness_center,
+                      color: Colors.blue.shade100,
+                      iconColor: Colors.blue,
+                      onTap: () async { 
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => const SportScreen()),
+                        );
+                        _loadUserData(); 
+                      },
+                    ),
+                    const SizedBox(height: 15),
 
-            // 3. 👇 L'AFFICHAGE DE LA FLAMME 🔥
-            const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.local_fire_department, color: Colors.deepOrange, size: 30),
-                const SizedBox(width: 5),
-                Text(
-                  'Série : $streak Jours', 
-                  style: const TextStyle(fontSize: 18, color: Colors.deepOrange, fontWeight: FontWeight.bold)
+                    MissionButton(
+                      title: "Nutrition",
+                      icon: Icons.restaurant,
+                      color: Colors.green.shade100,
+                      iconColor: Colors.green,
+                      onTap: () async {
+                         print("🚀 Navigation vers NutritionScreen !"); // Petit radar ajouté !
+                         await Navigator.push(context, MaterialPageRoute(builder: (context) => const NutritionScreen()));
+                         _loadUserData(); 
+                      },
+                    ),
+                    const SizedBox(height: 15),
+
+                    MissionButton(
+                      title: "Mental",
+                      icon: Icons.self_improvement, 
+                      color: Colors.purple.shade100,
+                      iconColor: Colors.purple,
+                      onTap: () async {
+                         await Navigator.push(context, MaterialPageRoute(builder: (context) => const MentalScreen()));
+                         _loadUserData(); 
+                      },
+                    ),
+                    const SizedBox(height: 30), // Espace en bas pour scroller confortablement
+                  ],
                 ),
-              ],
-            ),
-            
-            const SizedBox(height: 40),
-
-            // --- Zone des Missions (Les Boutons) ---
-            
-            // Bouton 1 : SPORT
-            MissionButton(
-              title: "Sport",
-              icon: Icons.fitness_center,
-              color: Colors.blue.shade100,
-              iconColor: Colors.blue,
-              onTap: () async { 
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SportScreen()),
-                );
-                _loadUserData(); // On recharge au retour
-              },
-            ),
-            const SizedBox(height: 15),
-
-            // Bouton 2 : NUTRITION
-            MissionButton(
-              title: "Nutrition",
-              icon: Icons.restaurant,
-              color: Colors.green.shade100,
-              iconColor: Colors.green,
-              onTap: () async {
-                 await Navigator.push(context, MaterialPageRoute(builder: (context) => const NutritionScreen()));
-                 _loadUserData(); 
-              },
-            ),
-            const SizedBox(height: 15),
-
-            // Bouton 3 : MENTAL
-            MissionButton(
-              title: "Mental",
-              icon: Icons.self_improvement, 
-              color: Colors.purple.shade100,
-              iconColor: Colors.purple,
-              onTap: () async {
-                  await Navigator.push(context, MaterialPageRoute(builder: (context) => const MentalScreen()));
-                  _loadUserData(); 
-              },
+              ),
             ),
           ],
         ),
@@ -167,7 +170,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-// LE COMPOSANT BOUTON (Pas changé, il est parfait)
+// LE COMPOSANT BOUTON
 class MissionButton extends StatelessWidget {
   final String title;
   final IconData icon;

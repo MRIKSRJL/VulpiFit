@@ -85,7 +85,7 @@ class _SportScreenState extends State<SportScreen> {
 
           final missions = snapshot.data!;
           // Filtre pour ne garder que le sport
-          final sportMissions = missions.where((m) => m.type == "Sport").toList();
+          final sportMissions = missions.where((m) => m.type.contains("Sport")).toList();
 
           return ListView.builder(
             itemCount: sportMissions.length,

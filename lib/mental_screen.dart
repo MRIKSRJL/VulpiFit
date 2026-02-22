@@ -84,7 +84,7 @@ class _MentalScreenState extends State<MentalScreen> {
           final missions = snapshot.data!;
           
           // 👇 LE FILTRE MAGIQUE : On ne garde que "Mental"
-          final mentalMissions = missions.where((m) => m.type == "Mental").toList();
+          final mentalMissions = missions.where((m) => m.type.contains("Mental")).toList();
 
           if (mentalMissions.isEmpty) {
             return const Center(
