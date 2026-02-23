@@ -63,8 +63,19 @@ namespace FitnessFox.API.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound();
 
+            // 1. On met à jour l'état actuel
             user.LastFeedback = request.FeedbackText;
             user.LastDifficulty = request.DifficultyLevel;
+
+            // 2. 📸 ON PREND LA PHOTO POUR LA ROADMAP !
+            var dailyLog = new UserProgressLog
+            {
+                UserId = user.Id,
+                Date = DateTime.UtcNow,
+                Weight = user.Weight ?? 0, // Ou une valeur par défaut
+                TotalScore = user.Score
+            };
+            _context.UserProgressLogs.Add(dailyLog);
 
             await _context.SaveChangesAsync();
             return Ok();

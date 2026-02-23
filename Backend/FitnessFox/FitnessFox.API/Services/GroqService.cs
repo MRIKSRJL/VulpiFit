@@ -23,45 +23,53 @@ namespace FitnessFox.API.Services
                 return new List<Mission>();
             }
 
-            var prompt = $@"Tu es Fitness Fox, un coach sportif et bien-être virtuel.
-Génère 3 missions quotidiennes personnalisées (exactement 1 'Sport', 1 'Nutrition', et 1 'Mental') pour cet utilisateur :
+            // 👇 LE NOUVEAU CERVEAU DE L'IA (Plusieurs missions par catégorie)
+            var prompt = $@"Tu es Fitness Fox, un coach sportif et nutritionnel virtuel expert.
+Aujourd'hui, tu dois générer un programme complet pour cet utilisateur sous forme de multiples missions :
 - Objectif : {user.Goals ?? "Garder la forme"}
 - Poids : {user.Weight} kg
 - Taille : {user.Height} cm
-- Blessures : {user.Injuries ?? "Aucune"}";
+- Blessures : {user.Injuries ?? "Aucune"}
 
-            // 👇 LA NOUVELLE INTELLIGENCE EST ICI
+CONSIGNES DE GÉNÉRATION :
+1. SPORT : Crée une séance de sport logique (ex: Séance Push, Tirage, ou Jambes). Génère 3 à 5 missions de 'Sport' qui correspondent aux différents exercices de cette séance (ex: Développé couché, puis Élévations latérales).
+2. NUTRITION : Génère 2 à 4 missions de 'Nutrition' réparties sur la journée (ex: Petit-déjeuner, Déjeuner, Dîner, Collation) adaptées à son objectif.
+3. MENTAL : Génère 1 ou 2 missions de 'Mental' (ex: Méditation, lecture, étirements relaxants).";
+
+            // Ajout du feedback s'il existe
             if (!string.IsNullOrEmpty(user.LastFeedback))
             {
                 prompt += $@"
 - RETOUR D'HIER : L'utilisateur a laissé ce commentaire : ""{user.LastFeedback}"". 
 - DIFFICULTÉ RESSENTIE HIER : {user.LastDifficulty}/10. 
-ADAPTATION OBLIGATOIRE : Si la note est haute (8-10), rends les missions d'aujourd'hui plus faciles. Si la note est basse (1-4), augmente un peu le défi. Prends en compte son commentaire texte pour ajuster les exercices.";
+ADAPTATION OBLIGATOIRE : Si la note est haute (8-10), rends le programme d'aujourd'hui plus facile (moins de volume ou exercices plus simples). Si la note est basse (1-4), augmente un peu le défi (surcharge progressive). Prends en compte son commentaire pour ajuster les exercices d'aujourd'hui.";
             }
 
             prompt += @"
 Réponds UNIQUEMENT avec un tableau JSON valide. Ne mets aucun texte avant ou après. N'utilise pas de balises markdown.
 Utilise les propriétés : Title, Type, Points.
 Types autorisés : Sport, Nutrition, Mental.
-Points : 10 à 50. Adapte les missions aux blessures.
+Points : 10 à 30 par mission. Adapte impérativement les exercices aux blessures de l'utilisateur.
 
-Exemple :
+Exemple de format attendu :
 [
-  { ""Title"": ""Faire 10 pompes adaptées"", ""Type"": ""Sport"", ""Points"": 20 },
-  { ""Title"": ""Boire 2 verres d'eau"", ""Type"": ""Nutrition"", ""Points"": 10 },
-  { ""Title"": ""5 minutes de méditation"", ""Type"": ""Mental"", ""Points"": 15 }
+  { ""Title"": ""Développé couché - 4 séries de 10"", ""Type"": ""Sport"", ""Points"": 20 },
+  { ""Title"": ""Élévations latérales - 3 séries de 15"", ""Type"": ""Sport"", ""Points"": 15 },
+  { ""Title"": ""Extension triceps à la poulie - 3 séries de 12"", ""Type"": ""Sport"", ""Points"": 15 },
+  { ""Title"": ""Petit-déjeuner : Flocons d'avoine, œufs et fruit"", ""Type"": ""Nutrition"", ""Points"": 15 },
+  { ""Title"": ""Déjeuner : Poulet, riz basmati et brocolis"", ""Type"": ""Nutrition"", ""Points"": 20 },
+  { ""Title"": ""10 minutes de cohérence cardiaque (Respiration)"", ""Type"": ""Mental"", ""Points"": 15 }
 ]";
 
             var requestBody = new
             {
                 model = "llama-3.3-70b-versatile",
                 messages = new[] { new { role = "user", content = prompt } },
-                temperature = 0.7
+                temperature = 0.7 // 0.7 laisse un peu de créativité à l'IA pour varier les entraînements
             };
 
             var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
 
-            // 👇 LA MÉTHODE PROPRE ET BLINDÉE
             using var request = new HttpRequestMessage(HttpMethod.Post, "https://api.groq.com/openai/v1/chat/completions");
             request.Headers.Add("Authorization", $"Bearer {_apiKey}");
             request.Content = content;

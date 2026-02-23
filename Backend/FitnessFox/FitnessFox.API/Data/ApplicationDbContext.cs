@@ -13,5 +13,6 @@ namespace FitnessFox.API.Data
         public DbSet<Mission> Missions { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<MissionLog> MissionLogs { get; set; }
+        public DbSet<UserProgressLog> UserProgressLogs { get; set; }
     }
 }
