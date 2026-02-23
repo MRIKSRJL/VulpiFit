@@ -57,6 +57,25 @@ namespace FitnessFox.API.Controllers
             await _context.SaveChangesAsync();
             return Ok("Profil mis à jour pour l'IA !");
         }
+        [HttpPost("{userId}/feedback")]
+        public async Task<IActionResult> SaveDailyFeedback(int userId, [FromBody] FeedbackRequest request)
+        {
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound();
+
+            user.LastFeedback = request.FeedbackText;
+            user.LastDifficulty = request.DifficultyLevel;
+
+            await _context.SaveChangesAsync();
+            return Ok();
+        }
+
+        // À mettre tout en bas du fichier, en dehors de la classe du Controller :
+        public class FeedbackRequest
+        {
+            public string FeedbackText { get; set; } = "";
+            public int DifficultyLevel { get; set; }
+        }
     }
 
     // 👇 LE DTO (LE MOULE) EST PLACÉ ICI À LA FIN

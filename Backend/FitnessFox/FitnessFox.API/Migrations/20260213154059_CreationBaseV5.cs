@@ -11,6 +11,8 @@ namespace FitnessFox.API.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            return;
+
             migrationBuilder.AddColumn<int>(
                 name: "CurrentStreak",
                 table: "Users",

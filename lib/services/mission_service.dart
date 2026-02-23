@@ -5,7 +5,7 @@ import '../models/mission.dart';
 
 class MissionService {
   // ⚠️ L'adresse de ton API
-  static const String baseUrl = "http://10.210.25.217:5045/api"; 
+  static const String baseUrl = "https://sid-dictational-sensationally.ngrok-free.dev/api"; 
 
   static int currentUserId = 0; 
   static String currentUserPseudo = "";
@@ -207,4 +207,24 @@ class MissionService {
       return false;
     }
   }
+  static Future<bool> sendDailyFeedback(String feedback, int difficulty) async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+    if (userId == null) return false;
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/Users/$userId/feedback'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'FeedbackText': feedback,
+        'DifficultyLevel': difficulty,
+      }),
+    );
+    return response.statusCode == 200;
+  } catch (e) {
+    print("Erreur feedback: $e");
+    return false;
+  }
+}
 }

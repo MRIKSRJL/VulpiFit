@@ -13,5 +13,7 @@
         public int? Height { get; set; } // Taille en cm
         public string? Injuries { get; set; } // ex: "Douleur au genou droit"
         public string? Goals { get; set; } // ex: "Perte de poids", "Prise de masse"
+        public string? LastFeedback { get; set; } // Le texte de son ressenti
+        public int? LastDifficulty { get; set; }  // La note de 1 à 10
     }
 }

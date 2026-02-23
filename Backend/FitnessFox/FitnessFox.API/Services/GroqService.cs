@@ -28,8 +28,18 @@ Génère 3 missions quotidiennes personnalisées (exactement 1 'Sport', 1 'Nutri
 - Objectif : {user.Goals ?? "Garder la forme"}
 - Poids : {user.Weight} kg
 - Taille : {user.Height} cm
-- Blessures : {user.Injuries ?? "Aucune"}
+- Blessures : {user.Injuries ?? "Aucune"}";
 
+            // 👇 LA NOUVELLE INTELLIGENCE EST ICI
+            if (!string.IsNullOrEmpty(user.LastFeedback))
+            {
+                prompt += $@"
+- RETOUR D'HIER : L'utilisateur a laissé ce commentaire : ""{user.LastFeedback}"". 
+- DIFFICULTÉ RESSENTIE HIER : {user.LastDifficulty}/10. 
+ADAPTATION OBLIGATOIRE : Si la note est haute (8-10), rends les missions d'aujourd'hui plus faciles. Si la note est basse (1-4), augmente un peu le défi. Prends en compte son commentaire texte pour ajuster les exercices.";
+            }
+
+            prompt += @"
 Réponds UNIQUEMENT avec un tableau JSON valide. Ne mets aucun texte avant ou après. N'utilise pas de balises markdown.
 Utilise les propriétés : Title, Type, Points.
 Types autorisés : Sport, Nutrition, Mental.
@@ -37,9 +47,9 @@ Points : 10 à 50. Adapte les missions aux blessures.
 
 Exemple :
 [
-  {{ ""Title"": ""Faire 10 pompes adaptées"", ""Type"": ""Sport"", ""Points"": 20 }},
-  {{ ""Title"": ""Boire 2 verres d'eau"", ""Type"": ""Nutrition"", ""Points"": 10 }},
-  {{ ""Title"": ""5 minutes de méditation"", ""Type"": ""Mental"", ""Points"": 15 }}
+  { ""Title"": ""Faire 10 pompes adaptées"", ""Type"": ""Sport"", ""Points"": 20 },
+  { ""Title"": ""Boire 2 verres d'eau"", ""Type"": ""Nutrition"", ""Points"": 10 },
+  { ""Title"": ""5 minutes de méditation"", ""Type"": ""Mental"", ""Points"": 15 }
 ]";
 
             var requestBody = new
@@ -58,6 +68,7 @@ Exemple :
 
             try
             {
+                Console.WriteLine("\n=== PROMPT ENVOYÉ À L'IA ==\n" + prompt + "\n===========================\n");
                 var response = await _httpClient.SendAsync(request);
 
                 if (!response.IsSuccessStatusCode)

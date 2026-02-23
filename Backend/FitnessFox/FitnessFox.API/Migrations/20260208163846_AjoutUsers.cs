@@ -10,6 +10,8 @@ namespace FitnessFox.API.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            return; // On retourne immédiatement pour éviter de créer la table "Users" qui existe déjà dans la base de
+
             migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
