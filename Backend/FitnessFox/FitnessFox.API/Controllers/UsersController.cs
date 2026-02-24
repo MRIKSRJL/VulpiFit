@@ -80,6 +80,18 @@ namespace FitnessFox.API.Controllers
             await _context.SaveChangesAsync();
             return Ok();
         }
+        
+        [HttpGet("{userId}/progress")]
+        public async Task<IActionResult> GetUserProgress(int userId)
+        {
+            // On récupère tout l'historique du joueur, trié du plus ancien au plus récent
+            var logs = await _context.UserProgressLogs
+                .Where(l => l.UserId == userId)
+                .OrderBy(l => l.Date)
+                .ToListAsync();
+
+            return Ok(logs);
+        }
 
         // À mettre tout en bas du fichier, en dehors de la classe du Controller :
         public class FeedbackRequest

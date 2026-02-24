@@ -226,5 +226,31 @@ class MissionService {
     print("Erreur feedback: $e");
     return false;
   }
+  
+}
+static Future<List<dynamic>> getUserProgress() async {
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final userId = prefs.getInt('userId');
+    if (userId == null) return [];
+
+    // 🔴 LA LIGNE À VÉRIFIER EST CELLE-CI :
+    final String endpoint = '$baseUrl/Users/$userId/progress'; 
+    
+    print("📡 DEMANDE ROADMAP : GET $endpoint");
+
+    final response = await http.get(Uri.parse(endpoint));
+    
+    print("📩 RÉPONSE ROADMAP : Code ${response.statusCode}");
+    
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    } else {
+      print("⚠️ Problème API : ${response.body}");
+    }
+  } catch (e) {
+    print("❌ ERREUR FLUTTER (Roadmap) : $e");
+  }
+  return [];
 }
 }

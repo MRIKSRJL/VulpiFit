@@ -5,6 +5,7 @@ import 'mental_screen.dart';
 import 'nutrition_screen.dart';
 import 'services/mission_service.dart';
 import 'auth_screen.dart';
+import 'progress_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -154,13 +155,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
+appBar: AppBar(
         backgroundColor: Colors.orange,
         elevation: 0,
         title: const Text('Fitness Fox 🦊',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
+          // 👈 NOUVEAU BOUTON : ROADMAP / STATISTIQUES
+          IconButton(
+            icon: const Icon(Icons.trending_up, color: Colors.white, size: 30),
+            tooltip: "Ma Roadmap",
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const ProgressScreen()),
+              );
+            },
+          ),
+          // BOUTON EXISTANT : PROFIL
           IconButton(
             icon: const Icon(Icons.account_circle, color: Colors.white, size: 30),
             onPressed: () => Navigator.push(
