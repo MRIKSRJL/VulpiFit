@@ -3,9 +3,11 @@ using Microsoft.EntityFrameworkCore;
 using FitnessFox.API.Data;
 using FitnessFox.API.Models;
 using FitnessFox.API.Services;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FitnessFox.API.Controllers
 {
+    [Authorize] // 👈 Le vigile est maintenant intraitable !
     [Route("api/[controller]")]
     [ApiController]
     public class MissionsController : ControllerBase
@@ -17,7 +19,7 @@ namespace FitnessFox.API.Controllers
         public MissionsController(ApplicationDbContext context, GroqService groqService)
         {
             _context = context;
-            _groqService = groqService; // ✅ Maintenant ça pointe vers le bon objet !
+            _groqService = groqService;
         }
 
         // GET: api/Missions/5
@@ -119,7 +121,7 @@ namespace FitnessFox.API.Controllers
                 await _context.SaveChangesAsync();
             }
 
-            return Ok(mission); // Ou retourne ce que tu retournais avant
+            return Ok(mission);
         }
 
         // POST: api/Missions/Undo/5?userId=1

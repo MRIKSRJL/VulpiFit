@@ -14,25 +14,34 @@ class MissionService {
   static Future<bool> login(String pseudo, String password) async {
     try {
       final response = await http.post(
-        Uri.parse("$baseUrl/Auth/login"),
+        Uri.parse("$baseUrl/Users/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"pseudo": pseudo, "password": password}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        currentUserId = data['id'];
-        currentUserPseudo = data['pseudo'];
         
-        // 👇 CORRECTION MAJEURE : On sauvegarde l'ID dans le téléphone !
+        final userData = data['user'] ?? data['User'];
+        final tokenString = data['token'] ?? data['Token'];
+
+        currentUserId = userData['id'] ?? userData['Id'];
+        currentUserPseudo = userData['pseudo'] ?? userData['Pseudo'];
+        
+        // 💾 SAUVEGARDE DANS LE TÉLÉPHONE
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('userId', currentUserId);
+        
+        // 🎟️ On sauvegarde aussi le fameux bracelet VIP !
+        if (tokenString != null) {
+          await prefs.setString('jwt_token', tokenString);
+        }
 
-        return true; // Succès
+        return true; 
       }
-      return false; // Échec
+      return false; 
     } catch (e) {
-      print("Erreur Login: $e");
+      print("❌ Erreur Login: $e");
       return false;
     }
   }
@@ -51,7 +60,6 @@ class MissionService {
         currentUserId = data['id'];
         currentUserPseudo = data['pseudo'];
 
-        // 👇 On sauvegarde aussi à l'inscription
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('userId', currentUserId);
 
@@ -69,10 +77,17 @@ class MissionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token'); // 🎟️ Le Token
       
-      if (userId == null) return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
+      if (userId == null || token == null) return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
 
-      final response = await http.get(Uri.parse("$baseUrl/Users"));
+      final response = await http.get(
+        Uri.parse("$baseUrl/Users"),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token" // 👈 On montre le badge
+        },
+      );
 
       if (response.statusCode == 200) {
         List<dynamic> users = jsonDecode(response.body);
@@ -96,23 +111,31 @@ class MissionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
 
       print("🚨 ATTENTION : Le téléphone demande les missions pour l'ID : $userId");
 
-      if (userId == null) {
-        print("🛑 Erreur : Personne n'est connecté !");
+      if (userId == null || token == null) {
+        print("🛑 Erreur : Personne n'est connecté ou Token VIP manquant !");
         return [];
       }
 
       final url = Uri.parse('$baseUrl/Missions/$userId'); 
-      final response = await http.get(url);
+      
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token" // 👈
+        },
+      );
 
       if (response.statusCode == 200) {
         List jsonResponse = json.decode(response.body);
         print("🟢 SUCCÈS ! ${jsonResponse.length} missions trouvées.");
         return jsonResponse.map((data) => Mission.fromJson(data)).toList();
       } else {
-        print("🔴 ERREUR API : ${response.statusCode}");
+        print("🔴 ERREUR API : ${response.statusCode} - L'accès a été refusé !");
         return [];
       }
     } catch (e) {
@@ -126,8 +149,9 @@ class MissionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
       
-      if (userId == null) {
+      if (userId == null || token == null) {
         print("🛑 Impossible de valider : aucun utilisateur connecté.");
         return false;
       }
@@ -135,7 +159,12 @@ class MissionService {
       print("📡 APPEL API VALIDER : POST $baseUrl/Missions/Complete/$missionId?userId=$userId");
       
       final url = Uri.parse('$baseUrl/Missions/Complete/$missionId?userId=$userId');
-      final response = await http.post(url);
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $token" // 👈
+        },
+      );
 
       print("📩 RÉPONSE API VALIDER (Code ${response.statusCode}) : ${response.body}");
 
@@ -151,11 +180,17 @@ class MissionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
 
-      if (userId == null) return false;
+      if (userId == null || token == null) return false;
 
       final url = Uri.parse('$baseUrl/Missions/Undo/$missionId?userId=$userId');
-      final response = await http.post(url); 
+      final response = await http.post(
+        url,
+        headers: {
+          "Authorization": "Bearer $token" // 👈
+        },
+      ); 
 
       return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
@@ -164,13 +199,14 @@ class MissionService {
     }
   }
 
-  // 👇 FONCTION ONBOARDING CORRIGÉE ET BAVARDE
+  // 7. FONCTION ONBOARDING
   static Future<bool> updateOnboarding(double weight, int height, String injuries, String goals) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userId = prefs.getInt('userId'); 
+      final String? token = prefs.getString('jwt_token');
 
-      if (userId == null) {
+      if (userId == null || token == null) {
         print("🛑 Erreur : Aucun ID utilisateur trouvé en mémoire.");
         return false;
       }
@@ -178,23 +214,21 @@ class MissionService {
       print("📡 Envoi des données d'onboarding pour l'utilisateur $userId...");
       
       final bodyData = jsonEncode({
-        'Weight': weight,      // Majuscules pour s'aligner parfaitement avec l'API C#
+        'Weight': weight,
         'Height': height,
         'Injuries': injuries,
         'Goals': goals,
       });
       
-      print("📦 Body envoyé : $bodyData");
-
       final response = await http.put(
         Uri.parse('$baseUrl/Users/$userId/onboarding'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": "Bearer $token" // 👈
+        },
         body: bodyData,
       );
 
-      print("📨 Réponse de l'API - Code : ${response.statusCode}");
-      
-      // 200 = OK, 204 = No Content (succès mais sans texte en retour, très commun en C#)
       if (response.statusCode == 200 || response.statusCode == 204) {
         print("✅ Onboarding mis à jour avec succès !");
         return true;
@@ -207,50 +241,64 @@ class MissionService {
       return false;
     }
   }
+
+  // 8. ENVOYER LE BILAN
   static Future<bool> sendDailyFeedback(String feedback, int difficulty) async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt('userId');
-    if (userId == null) return false;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
 
-    final response = await http.post(
-      Uri.parse('$baseUrl/Users/$userId/feedback'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'FeedbackText': feedback,
-        'DifficultyLevel': difficulty,
-      }),
-    );
-    return response.statusCode == 200;
-  } catch (e) {
-    print("Erreur feedback: $e");
-    return false;
-  }
-  
-}
-static Future<List<dynamic>> getUserProgress() async {
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final userId = prefs.getInt('userId');
-    if (userId == null) return [];
+      if (userId == null || token == null) return false;
 
-    // 🔴 LA LIGNE À VÉRIFIER EST CELLE-CI :
-    final String endpoint = '$baseUrl/Users/$userId/progress'; 
-    
-    print("📡 DEMANDE ROADMAP : GET $endpoint");
-
-    final response = await http.get(Uri.parse(endpoint));
-    
-    print("📩 RÉPONSE ROADMAP : Code ${response.statusCode}");
-    
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
-    } else {
-      print("⚠️ Problème API : ${response.body}");
+      final response = await http.post(
+        Uri.parse('$baseUrl/Users/$userId/feedback'),
+        headers: {
+          'Content-Type': 'application/json',
+          "Authorization": "Bearer $token" // 👈
+        },
+        body: jsonEncode({
+          'FeedbackText': feedback,
+          'DifficultyLevel': difficulty,
+        }),
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Erreur feedback: $e");
+      return false;
     }
-  } catch (e) {
-    print("❌ ERREUR FLUTTER (Roadmap) : $e");
   }
-  return [];
-}
+
+  // 9. RÉCUPÉRER LA PROGRESSION (ROADMAP)
+  static Future<List<dynamic>> getUserProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
+
+      if (userId == null || token == null) return [];
+
+      final String endpoint = '$baseUrl/Users/$userId/progress'; 
+      print("📡 DEMANDE ROADMAP : GET $endpoint");
+
+      final response = await http.get(
+        Uri.parse(endpoint),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token" // 👈
+        }
+      );
+      
+      print("📩 RÉPONSE ROADMAP : Code ${response.statusCode}");
+      
+      if (response.statusCode == 200) {
+        return jsonDecode(response.body);
+      } else {
+        print("⚠️ Problème API : ${response.body}");
+      }
+    } catch (e) {
+      print("❌ ERREUR FLUTTER (Roadmap) : $e");
+    }
+    return [];
+  }
 }

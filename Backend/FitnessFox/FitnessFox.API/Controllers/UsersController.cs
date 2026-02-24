@@ -2,6 +2,11 @@
 using Microsoft.EntityFrameworkCore;
 using FitnessFox.API.Data;
 using FitnessFox.API.Models;
+using BCrypt.Net;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace FitnessFox.API.Controllers
 {
@@ -30,6 +35,12 @@ namespace FitnessFox.API.Controllers
             var pseudoExiste = await _context.Users.AnyAsync(u => u.Pseudo.ToLower() == user.Pseudo.ToLower());
             if (pseudoExiste) return BadRequest("Ce pseudo est déjà pris !");
 
+            // 🛡️ NOUVEAUTÉ SÉCURITÉ : On crypte le mot de passe avant de le sauvegarder !
+            if (!string.IsNullOrEmpty(user.Password))
+            {
+                user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+            }
+
             user.Score = 0;
             user.CurrentStreak = 0;
             user.TotalMissionsCompleted = 0;
@@ -41,7 +52,39 @@ namespace FitnessFox.API.Controllers
             return CreatedAtAction("GetUsers", new { id = user.Id }, user);
         }
 
-        // 👇 LA ROUTE ONBOARDING EST BIEN ICI !
+        [HttpPost("login")]
+        public async Task<IActionResult> Login([FromBody] LoginRequest request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Pseudo.ToLower() == request.Pseudo.ToLower());
+            if (user == null) return Unauthorized("Pseudo ou mot de passe incorrect.");
+
+            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.Password);
+            if (!isPasswordValid) return Unauthorized("Pseudo ou mot de passe incorrect.");
+
+            // 🎟️ FABRICATION DU BRACELET VIP (JWT)
+            var jwtKey = "LaCleSecreteDeFitnessFoxSuperLongueEtSecurisee2026!"; // La même que dans Program.cs
+            var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
+
+            var tokenDescriptor = new SecurityTokenDescriptor
+            {
+                // Ce que contient le bracelet (l'ID du joueur)
+                Subject = new ClaimsIdentity(new[]
+                {
+                    new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                    new Claim(ClaimTypes.Name, user.Pseudo)
+                }),
+                Expires = DateTime.UtcNow.AddDays(7), // Valable 7 jours
+                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(keyBytes), SecurityAlgorithms.HmacSha256Signature)
+            };
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            var token = tokenHandler.CreateToken(tokenDescriptor);
+            var jwtString = tokenHandler.WriteToken(token);
+
+            // On renvoie le bracelet (token) ET les infos de l'utilisateur
+            return Ok(new { Token = jwtString, User = user });
+        }
+
         // PUT: api/Users/{id}/onboarding
         [HttpPut("{id}/onboarding")]
         public async Task<IActionResult> UpdateOnboarding(int id, [FromBody] UserOnboardingDto onboardingData)
@@ -57,6 +100,7 @@ namespace FitnessFox.API.Controllers
             await _context.SaveChangesAsync();
             return Ok("Profil mis à jour pour l'IA !");
         }
+
         [HttpPost("{userId}/feedback")]
         public async Task<IActionResult> SaveDailyFeedback(int userId, [FromBody] FeedbackRequest request)
         {
@@ -80,7 +124,7 @@ namespace FitnessFox.API.Controllers
             await _context.SaveChangesAsync();
             return Ok();
         }
-        
+
         [HttpGet("{userId}/progress")]
         public async Task<IActionResult> GetUserProgress(int userId)
         {
@@ -93,15 +137,22 @@ namespace FitnessFox.API.Controllers
             return Ok(logs);
         }
 
-        // À mettre tout en bas du fichier, en dehors de la classe du Controller :
+        // --- CLASSES DTO (Moules de données) ---
+
         public class FeedbackRequest
         {
             public string FeedbackText { get; set; } = "";
             public int DifficultyLevel { get; set; }
         }
+
+        // 👇 NOUVEAU DTO POUR LE LOGIN
+        public class LoginRequest
+        {
+            public string Pseudo { get; set; } = "";
+            public string Password { get; set; } = "";
+        }
     }
 
-    // 👇 LE DTO (LE MOULE) EST PLACÉ ICI À LA FIN
     public class UserOnboardingDto
     {
         public float Weight { get; set; }
