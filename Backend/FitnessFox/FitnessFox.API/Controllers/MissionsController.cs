@@ -72,9 +72,10 @@ namespace FitnessFox.API.Controllers
         [HttpPost("Complete/{id}")]
         public async Task<IActionResult> CompleteMission(int id, [FromQuery] int userId)
         {
-            var mission = await _context.Missions.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
-            if (mission == null) return NotFound();
+            var mission = await _context.Missions.FindAsync(id);
+            if (mission == null || mission.UserId != userId) return NotFound();
 
+            // On vérifie que la mission n'est pas déjà complétée
             if (!mission.IsCompleted)
             {
                 mission.IsCompleted = true;
@@ -82,12 +83,43 @@ namespace FitnessFox.API.Controllers
                 var user = await _context.Users.FindAsync(userId);
                 if (user != null)
                 {
+                    // 1. On ajoute les points
                     user.Score += mission.Points;
                     user.TotalMissionsCompleted += 1;
+
+                    // 2. 🧠 LOGIQUE DE LA STREAK (SÉRIE DE JOURS)
+                    var today = DateTime.UtcNow.Date;
+                    var lastActivity = user.LastActivityDate?.Date;
+
+                    if (lastActivity == today.AddDays(-1))
+                    {
+                        // Victoire : il a joué hier, la série augmente !
+                        user.CurrentStreak += 1;
+                    }
+                    else if (lastActivity == today)
+                    {
+                        // Il a déjà été actif aujourd'hui.
+                        // S'il avait 0 (ex: nouveau compte), on le passe à 1. 
+                        // Sinon on ne touche à rien (il a déjà validé sa journée).
+                        if (user.CurrentStreak == 0)
+                        {
+                            user.CurrentStreak = 1;
+                        }
+                    }
+                    else
+                    {
+                        // Aïe : il a raté un jour, ou lastActivity est null
+                        user.CurrentStreak = 1;
+                    }
+
+                    // 3. On met à jour la date de dernière activité à "maintenant"
+                    user.LastActivityDate = DateTime.UtcNow;
                 }
+
                 await _context.SaveChangesAsync();
             }
-            return Ok();
+
+            return Ok(mission); // Ou retourne ce que tu retournais avant
         }
 
         // POST: api/Missions/Undo/5?userId=1
