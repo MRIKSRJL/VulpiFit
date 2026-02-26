@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace FitnessFox.API.Controllers
 {
-    [Authorize] // 👈 Le vigile est maintenant intraitable !
+    [Authorize] // 👈 Le vigile est toujours là !
     [Route("api/[controller]")]
     [ApiController]
     public class MissionsController : ControllerBase
@@ -15,7 +15,6 @@ namespace FitnessFox.API.Controllers
         private readonly ApplicationDbContext _context;
         private readonly GroqService _groqService;
 
-        // On injecte le service IA proprement
         public MissionsController(ApplicationDbContext context, GroqService groqService)
         {
             _context = context;
@@ -41,9 +40,18 @@ namespace FitnessFox.API.Controllers
                 return Ok(dailyMissions);
             }
 
-            // 2. CRÉATION PAR L'IA
+            // 2. CRÉATION PAR L'IA AVEC HISTORIQUE 🧠
             Console.WriteLine($"🚀 Génération de missions IA pour le joueur {user.Pseudo}...");
-            var newMissions = await _groqService.GenerateDailyMissionsAsync(user);
+
+            // 👇 NOUVEAU : On récupère les 15 dernières performances (Poids/Reps) du joueur
+            var recentLogs = await _context.ExerciseLogs
+                .Where(e => e.UserId == userId)
+                .OrderByDescending(e => e.Date)
+                .Take(15)
+                .ToListAsync();
+
+            // 👇 NOUVEAU : On passe l'historique à notre GroqService
+            var newMissions = await _groqService.GenerateDailyMissionsAsync(user, recentLogs);
 
             // Plan de secours : Si Groq a un bug réseau
             if (newMissions == null || !newMissions.Any())
@@ -89,20 +97,16 @@ namespace FitnessFox.API.Controllers
                     user.Score += mission.Points;
                     user.TotalMissionsCompleted += 1;
 
-                    // 2. 🧠 LOGIQUE DE LA STREAK (SÉRIE DE JOURS)
+                    // 2. LOGIQUE DE LA STREAK (SÉRIE DE JOURS)
                     var today = DateTime.UtcNow.Date;
                     var lastActivity = user.LastActivityDate?.Date;
 
                     if (lastActivity == today.AddDays(-1))
                     {
-                        // Victoire : il a joué hier, la série augmente !
                         user.CurrentStreak += 1;
                     }
                     else if (lastActivity == today)
                     {
-                        // Il a déjà été actif aujourd'hui.
-                        // S'il avait 0 (ex: nouveau compte), on le passe à 1. 
-                        // Sinon on ne touche à rien (il a déjà validé sa journée).
                         if (user.CurrentStreak == 0)
                         {
                             user.CurrentStreak = 1;
@@ -110,11 +114,10 @@ namespace FitnessFox.API.Controllers
                     }
                     else
                     {
-                        // Aïe : il a raté un jour, ou lastActivity est null
                         user.CurrentStreak = 1;
                     }
 
-                    // 3. On met à jour la date de dernière activité à "maintenant"
+                    // 3. On met à jour la date de dernière activité
                     user.LastActivityDate = DateTime.UtcNow;
                 }
 

@@ -301,4 +301,34 @@ class MissionService {
     }
     return [];
   }
+  // 10. ENREGISTRER UNE PERFORMANCE (SURCHARGE PROGRESSIVE)
+  static Future<bool> logExercise(String exerciseName, double weight, int reps) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
+
+      if (userId == null || token == null) return false;
+
+      final url = Uri.parse('$baseUrl/Exercises/log');
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token" // 👈 Toujours notre vigile !
+        },
+        body: jsonEncode({
+          "UserId": userId,
+          "ExerciseName": exerciseName,
+          "Weight": weight,
+          "Reps": reps
+        }),
+      );
+
+      return response.statusCode == 200 || response.statusCode == 201;
+    } catch (e) {
+      print("💥 ERREUR lors de l'enregistrement de l'exercice : $e");
+      return false;
+    }
+  }
 }
