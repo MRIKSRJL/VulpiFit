@@ -14,24 +14,33 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _heightController = TextEditingController();
   final _injuriesController = TextEditingController();
   
-  // L'objectif sélectionné par défaut
-  String _selectedGoal = 'Perte de poids';
+  // 🔄 NOUVEAU : Une liste pour stocker PLUSIEURS objectifs
+  final List<String> _selectedGoals = [];
   
-  // Les options de la liste déroulante
-  final List<String> _goals = [
-    'Perte de poids',
-    'Prise de masse musculaire',
-    'Remise en forme / Santé',
-    'Performance sportive'
+  // Les options d'objectifs plus détaillées
+  final List<String> _availableGoals = [
+    'Perte de gras',
+    'Prise de muscle',
+    'Force pure (Powerlifting)',
+    'Endurance / Cardio',
+    'Souplesse / Mobilité',
+    'Athlète Hybride',
+    'Remise en forme douce'
   ];
 
   bool _isLoading = false;
 
   void _soumettreFormulaire() async {
-    // 1. On vérifie que les champs obligatoires sont remplis
     if (_weightController.text.isEmpty || _heightController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Le poids et la taille sont obligatoires ! 🦊"), backgroundColor: Colors.orange),
+      );
+      return;
+    }
+
+    if (_selectedGoals.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Choisis au moins un objectif ! 🎯"), backgroundColor: Colors.orange),
       );
       return;
     }
@@ -43,9 +52,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     double weight = double.tryParse(_weightController.text) ?? 70.0;
     int height = int.tryParse(_heightController.text) ?? 170;
     String injuries = _injuriesController.text;
+    
+    // 🔗 On relie tous les objectifs choisis avec une virgule pour l'IA
+    String finalGoals = _selectedGoals.join(', ');
 
-    // 2. On envoie à l'API
-    bool success = await MissionService.updateOnboarding(weight, height, injuries, _selectedGoal);
+    // On envoie à l'API
+    bool success = await MissionService.updateOnboarding(weight, height, injuries, finalGoals);
 
     if (!mounted) return;
 
@@ -54,7 +66,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     });
 
     if (success) {
-      // 3. Si ça marche, direction le Dashboard !
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const DashboardScreen()),
@@ -116,34 +127,39 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             const SizedBox(height: 25),
 
-            // -- OBJECTIF --
-            const Text("Quel est ton objectif principal ?", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
+            // -- OBJECTIFS MULTIPLES (NOUVEAU DESIGN) --
+            const Text("Quels sont tes objectifs ? (Plusieurs choix possibles)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
             const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 15),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey),
-                borderRadius: BorderRadius.circular(5),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedGoal,
-                  isExpanded: true,
-                  icon: const Icon(Icons.flag, color: Colors.orange),
-                  items: _goals.map((String goal) {
-                    return DropdownMenuItem<String>(
-                      value: goal,
-                      child: Text(goal),
-                    );
-                  }).toList(),
-                  onChanged: (String? newValue) {
+            
+            Wrap(
+              spacing: 8.0, // Espace horizontal entre les puces
+              runSpacing: 4.0, // Espace vertical
+              children: _availableGoals.map((goal) {
+                bool isSelected = _selectedGoals.contains(goal);
+                return FilterChip(
+                  label: Text(goal),
+                  labelStyle: TextStyle(
+                    color: isSelected ? Colors.white : Colors.black87,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                  selected: isSelected,
+                  selectedColor: Colors.orange,
+                  checkmarkColor: Colors.white,
+                  backgroundColor: Colors.white,
+                  shape: StadiumBorder(side: BorderSide(color: isSelected ? Colors.orange : Colors.grey.shade300)),
+                  onSelected: (bool selected) {
                     setState(() {
-                      _selectedGoal = newValue!;
+                      if (selected) {
+                        _selectedGoals.add(goal);
+                      } else {
+                        _selectedGoals.remove(goal);
+                      }
                     });
                   },
-                ),
-              ),
+                );
+              }).toList(),
             ),
+            
             const SizedBox(height: 25),
 
             // -- BLESSURES --

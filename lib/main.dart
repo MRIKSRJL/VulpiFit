@@ -6,9 +6,13 @@ import 'nutrition_screen.dart';
 import 'services/mission_service.dart';
 import 'auth_screen.dart';
 import 'progress_screen.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🇫🇷 CHARGEMENT DU DICTIONNAIRE FRANÇAIS POUR LES DATES
+  await initializeDateFormatting('fr_FR', null);
 
   // --- TEST DE CONNEXION ---
   print("🔵 TENTATIVE DE CONNEXION A L'API...");
@@ -155,14 +159,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-appBar: AppBar(
+      appBar: AppBar(
         backgroundColor: Colors.orange,
         elevation: 0,
         title: const Text('Fitness Fox 🦊',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
-          // 👈 NOUVEAU BOUTON : ROADMAP / STATISTIQUES
+          // BOUTON ROADMAP / STATISTIQUES
           IconButton(
             icon: const Icon(Icons.trending_up, color: Colors.white, size: 30),
             tooltip: "Ma Roadmap",
