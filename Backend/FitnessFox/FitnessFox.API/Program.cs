@@ -25,9 +25,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // CONFIGURATION DE LA BDD
+// CONFIGURATION DE LA BDD
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer("Server=(localdb)\\mssqllocaldb;Database=FitnessFox_Final;Trusted_Connection=True;MultipleActiveResultSets=true"));
-
+    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 builder.Services.AddHttpClient<FitnessFox.API.Services.GroqService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -55,10 +55,11 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+app.UseSwagger();
+app.UseSwaggerUI();
 if (app.Environment.IsDevelopment())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    
 }
 
 app.UseAuthentication();

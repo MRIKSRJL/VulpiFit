@@ -28,15 +28,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
     });
 
     try {
-      // On sait maintenant que ce sont de vrais objets 'Mission'
       List<dynamic> missionsBrutes = await MissionService.getMissions();
-      
-      // On les transforme en une liste typée List<Mission>
       List<Mission> toutesLesMissions = missionsBrutes.cast<Mission>();
 
-      // 👇 Le filtre magique corrigé : On regarde la propriété .type
       List<Mission> missionsFiltrees = toutesLesMissions.where((mission) {
-        // On s'assure que le type existe, on le met en minuscule et on vérifie s'il contient "nutrition"
         return mission.type.toLowerCase().contains("nutrition");
       }).toList();
 
@@ -64,6 +59,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
     try {
       if (!etaitDejaFaite) {
         bool success = await MissionService.completeMission(mission.id);
+        
+        // 🛡️ LE BOUCLIER : Si on a quitté la page, on arrête tout
+        if (!mounted) return;
+
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text("Miam ! ${mission.title} validée ! (+${mission.points} pts) 🍏"), backgroundColor: Colors.green, duration: const Duration(seconds: 1)),
@@ -73,6 +72,10 @@ class _NutritionScreenState extends State<NutritionScreen> {
         }
       } else {
         bool success = await MissionService.undoMission(mission.id);
+        
+        // 🛡️ LE BOUCLIER
+        if (!mounted) return;
+
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text("Annulé. On ne triche pas sur le régime ! 👀"), duration: Duration(seconds: 1)),
@@ -82,6 +85,9 @@ class _NutritionScreenState extends State<NutritionScreen> {
         }
       }
     } catch (e) {
+      // 🛡️ LE BOUCLIER ICI AUSSI
+      if (!mounted) return;
+      
       setState(() { mission.isCompleted = etaitDejaFaite; });
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Erreur : $e")));
     }

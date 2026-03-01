@@ -2,10 +2,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/mission.dart';
+import 'dart:io';    // 🛡️ Pour détecter les coupures réseau (SocketException)
+import 'dart:async'; // ⏱️ Pour gérer le chronomètre (TimeoutException)
 
 class MissionService {
-  // ⚠️ L'adresse de ton API
-  static const String baseUrl = "https://sid-dictational-sensationally.ngrok-free.dev/api"; 
+  static const String baseUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api"; 
 
   static int currentUserId = 0; 
   static String currentUserPseudo = "";
@@ -17,29 +18,31 @@ class MissionService {
         Uri.parse("$baseUrl/Users/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"pseudo": pseudo, "password": password}),
-      );
+      ).timeout(const Duration(seconds: 30)); // ⏱️ Bouclier chrono
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        
         final userData = data['user'] ?? data['User'];
         final tokenString = data['token'] ?? data['Token'];
 
         currentUserId = userData['id'] ?? userData['Id'];
         currentUserPseudo = userData['pseudo'] ?? userData['Pseudo'];
         
-        // 💾 SAUVEGARDE DANS LE TÉLÉPHONE
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('userId', currentUserId);
         
-        // 🎟️ On sauvegarde aussi le fameux bracelet VIP !
         if (tokenString != null) {
           await prefs.setString('jwt_token', tokenString);
         }
-
         return true; 
       }
       return false; 
+    } on SocketException {
+      print("📶 Pas de connexion internet");
+      return false;
+    } on TimeoutException {
+      print("🐢 Délai d'attente dépassé");
+      return false;
     } catch (e) {
       print("❌ Erreur Login: $e");
       return false;
@@ -53,7 +56,7 @@ class MissionService {
         Uri.parse("$baseUrl/Auth/register"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"pseudo": pseudo, "password": password}),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -62,12 +65,14 @@ class MissionService {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt('userId', currentUserId);
-
         return true;
       }
       return false;
+    } on SocketException {
+      return false;
+    } on TimeoutException {
+      return false;
     } catch (e) {
-      print("Erreur Register: $e");
       return false;
     }
   }
@@ -77,7 +82,7 @@ class MissionService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
-      final String? token = prefs.getString('jwt_token'); // 🎟️ Le Token
+      final String? token = prefs.getString('jwt_token'); 
       
       if (userId == null || token == null) return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
 
@@ -85,9 +90,9 @@ class MissionService {
         Uri.parse("$baseUrl/Users"),
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer $token" // 👈 On montre le badge
+          "Authorization": "Bearer $token"
         },
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         List<dynamic> users = jsonDecode(response.body);
@@ -106,18 +111,15 @@ class MissionService {
     return {"pseudo": "Erreur", "score": 0, "streak": 0, "total": 0};
   }
 
-  // 4. RÉCUPÉRER LES MISSIONS
+  // 4. RÉCUPÉRER LES MISSIONS (AVEC RENVOI D'ERREURS AU FUTUR BUILDER)
   static Future<List<Mission>> getMissions() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
       final String? token = prefs.getString('jwt_token');
 
-      print("🚨 ATTENTION : Le téléphone demande les missions pour l'ID : $userId");
-
       if (userId == null || token == null) {
-        print("🛑 Erreur : Personne n'est connecté ou Token VIP manquant !");
-        return [];
+        throw "Personne n'est connecté ou Token VIP manquant !";
       }
 
       final url = Uri.parse('$baseUrl/Missions/$userId'); 
@@ -126,76 +128,77 @@ class MissionService {
         url,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer $token" // 👈
+          "Authorization": "Bearer $token"
         },
-      );
+      ).timeout(const Duration(seconds: 30)); // ⏱️ Bouclier 10 secondes
 
       if (response.statusCode == 200) {
         List jsonResponse = json.decode(response.body);
-        print("🟢 SUCCÈS ! ${jsonResponse.length} missions trouvées.");
         return jsonResponse.map((data) => Mission.fromJson(data)).toList();
       } else {
-        print("🔴 ERREUR API : ${response.statusCode} - L'accès a été refusé !");
-        return [];
+        throw "Erreur serveur : ${response.statusCode}";
       }
+    } on SocketException {
+      throw "Pas de connexion internet 📶. Vérifie ton réseau !";
+    } on TimeoutException {
+      throw "Le coach IA met trop de temps à répondre 🐢.";
     } catch (e) {
-      print("💥 ERREUR CRITIQUE DANS GETMISSIONS : $e");
-      return [];
+      throw "Une erreur est survenue : $e";
     }
   }
 
-  // 5. VALIDER UNE MISSION
+  // 5. VALIDER UNE MISSION (ROBUSTE)
   static Future<bool> completeMission(int missionId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
       final String? token = prefs.getString('jwt_token');
       
-      if (userId == null || token == null) {
-        print("🛑 Impossible de valider : aucun utilisateur connecté.");
-        return false;
-      }
+      if (userId == null || token == null) throw "Aucun utilisateur connecté.";
 
-      print("📡 APPEL API VALIDER : POST $baseUrl/Missions/Complete/$missionId?userId=$userId");
-      
       final url = Uri.parse('$baseUrl/Missions/Complete/$missionId?userId=$userId');
       final response = await http.post(
         url,
-        headers: {
-          "Authorization": "Bearer $token" // 👈
-        },
-      );
+        headers: {"Authorization": "Bearer $token"},
+      ).timeout(const Duration(seconds: 30));
 
-      print("📩 RÉPONSE API VALIDER (Code ${response.statusCode}) : ${response.body}");
-
-      return response.statusCode == 200 || response.statusCode == 204;
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      } else {
+        throw "Erreur serveur : ${response.statusCode}";
+      }
+    } on SocketException {
+      throw "Pas de connexion internet 📶. Impossible de valider.";
+    } on TimeoutException {
+      throw "Délai d'attente dépassé 🐢.";
     } catch (e) {
-      print("💥 ERREUR CRITIQUE lors de la validation : $e");
-      return false;
+      throw e.toString();
     }
   }
 
-  // 6. ANNULER UNE MISSION
+  // 6. ANNULER UNE MISSION (ROBUSTE)
   static Future<bool> undoMission(int missionId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final int? userId = prefs.getInt('userId');
       final String? token = prefs.getString('jwt_token');
 
-      if (userId == null || token == null) return false;
+      if (userId == null || token == null) throw "Erreur d'authentification";
 
       final url = Uri.parse('$baseUrl/Missions/Undo/$missionId?userId=$userId');
       final response = await http.post(
         url,
-        headers: {
-          "Authorization": "Bearer $token" // 👈
-        },
-      ); 
+        headers: {"Authorization": "Bearer $token"},
+      ).timeout(const Duration(seconds: 30)); 
 
-      return response.statusCode == 200 || response.statusCode == 204;
+      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      throw "Erreur serveur";
+    } on SocketException {
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      throw "Délai d'attente dépassé 🐢.";
     } catch (e) {
-      print("💥 ERREUR lors de l'annulation : $e");
-      return false;
+      throw e.toString();
     }
   }
 
@@ -206,38 +209,19 @@ class MissionService {
       final userId = prefs.getInt('userId'); 
       final String? token = prefs.getString('jwt_token');
 
-      if (userId == null || token == null) {
-        print("🛑 Erreur : Aucun ID utilisateur trouvé en mémoire.");
-        return false;
-      }
-
-      print("📡 Envoi des données d'onboarding pour l'utilisateur $userId...");
-      
-      final bodyData = jsonEncode({
-        'Weight': weight,
-        'Height': height,
-        'Injuries': injuries,
-        'Goals': goals,
-      });
+      if (userId == null || token == null) return false;
       
       final response = await http.put(
         Uri.parse('$baseUrl/Users/$userId/onboarding'),
         headers: {
           'Content-Type': 'application/json',
-          "Authorization": "Bearer $token" // 👈
+          "Authorization": "Bearer $token"
         },
-        body: bodyData,
-      );
+        body: jsonEncode({'Weight': weight, 'Height': height, 'Injuries': injuries, 'Goals': goals}),
+      ).timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200 || response.statusCode == 204) {
-        print("✅ Onboarding mis à jour avec succès !");
-        return true;
-      } else {
-        print("❌ Erreur API Onboarding : ${response.body}");
-        return false;
-      }
+      return response.statusCode == 200 || response.statusCode == 204;
     } catch (e) {
-      print("💥 Erreur de connexion : $e");
       return false;
     }
   }
@@ -255,16 +239,12 @@ class MissionService {
         Uri.parse('$baseUrl/Users/$userId/feedback'),
         headers: {
           'Content-Type': 'application/json',
-          "Authorization": "Bearer $token" // 👈
+          "Authorization": "Bearer $token"
         },
-        body: jsonEncode({
-          'FeedbackText': feedback,
-          'DifficultyLevel': difficulty,
-        }),
-      );
+        body: jsonEncode({'FeedbackText': feedback, 'DifficultyLevel': difficulty}),
+      ).timeout(const Duration(seconds: 30));
       return response.statusCode == 200;
     } catch (e) {
-      print("Erreur feedback: $e");
       return false;
     }
   }
@@ -279,28 +259,22 @@ class MissionService {
       if (userId == null || token == null) return [];
 
       final String endpoint = '$baseUrl/Users/$userId/progress'; 
-      print("📡 DEMANDE ROADMAP : GET $endpoint");
 
       final response = await http.get(
         Uri.parse(endpoint),
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer $token" // 👈
+          "Authorization": "Bearer $token"
         }
-      );
+      ).timeout(const Duration(seconds: 30));
       
-      print("📩 RÉPONSE ROADMAP : Code ${response.statusCode}");
-      
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      } else {
-        print("⚠️ Problème API : ${response.body}");
-      }
+      if (response.statusCode == 200) return jsonDecode(response.body);
     } catch (e) {
       print("❌ ERREUR FLUTTER (Roadmap) : $e");
     }
     return [];
   }
+
   // 10. ENREGISTRER UNE PERFORMANCE (SURCHARGE PROGRESSIVE)
   static Future<bool> logExercise(String exerciseName, double weight, int reps) async {
     try {
@@ -315,7 +289,7 @@ class MissionService {
         url,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": "Bearer $token" // 👈 Toujours notre vigile !
+          "Authorization": "Bearer $token"
         },
         body: jsonEncode({
           "UserId": userId,
@@ -323,7 +297,7 @@ class MissionService {
           "Weight": weight,
           "Reps": reps
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {

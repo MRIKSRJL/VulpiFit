@@ -38,6 +38,9 @@ class _MentalScreenState extends State<MentalScreen> {
         // ✅ On VALIDE
         await MissionService.completeMission(mission.id);
         
+        // 🛡️ LE BOUCLIER
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text("Zen... ${mission.title} validée ! (+${mission.points} pts) 🧘"), 
@@ -49,11 +52,17 @@ class _MentalScreenState extends State<MentalScreen> {
         // ↩️ On ANNULE
         await MissionService.undoMission(mission.id);
         
+        // 🛡️ LE BOUCLIER
+        if (!mounted) return;
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Annulé. Respire un bon coup..."), duration: Duration(seconds: 1)),
         );
       }
     } catch (e) {
+      // 🛡️ LE BOUCLIER ICI AUSSI
+      if (!mounted) return;
+      
       setState(() {
         mission.isCompleted = etaitDejaFaite;
       });
