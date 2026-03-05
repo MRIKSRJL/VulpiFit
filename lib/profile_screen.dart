@@ -53,114 +53,237 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (progress > 1) progress = 1;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
-      body: Column(
+      backgroundColor: Colors.black,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F0F0F), Color(0xFF1A1A1A)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context, levelInfo, progress, minXp, maxXp),
+              const SizedBox(height: 30),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: _buildStatCard(Icons.star, const Color(0xFFFFA94D), "$score pts", "Score Total")),
+                        const SizedBox(width: 15),
+                        Expanded(child: _buildStatCard(Icons.local_fire_department, const Color(0xFFFF6B35), "$streak jours", "Série")),
+                      ],
+                    ),
+                    const SizedBox(height: 15),
+                    _buildStatCard(Icons.check_circle, const Color(0xFF39FF14), "$totalMissions", "Missions Terminées"),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, Map<String, dynamic> levelInfo, double progress, int minXp, int maxXp) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(25),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFFFF6B35), Color(0xFFFF8C42)],
+        ),
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFFFF6B35).withOpacity(0.5),
+            blurRadius: 30,
+            spreadRadius: 5,
+          ),
+        ],
+      ),
+      child: Column(
         children: [
-          // 🟧 EN-TÊTE ORANGE (CARTE DE JOUEUR)
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              const Text(
+                "Mon Profil",
+                style: TextStyle(
+                  fontSize: 24,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  shadows: [
+                    Shadow(
+                      color: Colors.black26,
+                      blurRadius: 10,
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.logout, color: Colors.white, size: 26),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 25),
           Container(
-            width: double.infinity,
-            padding: const EdgeInsets.only(top: 60, bottom: 30),
-            decoration: const BoxDecoration(
-              color: Colors.orange,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40),
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: RadialGradient(
+                colors: [
+                  Colors.white.withOpacity(0.8),
+                  Colors.white.withOpacity(0.3),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withOpacity(0.5),
+                  blurRadius: 20,
+                  spreadRadius: 5,
+                ),
+              ],
+            ),
+            child: CircleAvatar(
+              radius: 50,
+              backgroundColor: const Color(0xFF1A1A1A),
+              child: Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: const Color(0xFFFF6B35),
+                    width: 3,
+                  ),
+                ),
+                child: const CircleAvatar(
+                  radius: 47,
+                  backgroundColor: Color(0xFF0F0F0F),
+                  child: Icon(Icons.person, size: 50, color: Color(0xFFFF6B35)),
+                ),
               ),
             ),
-            child: Column(
-              children: [
-                // Boutons d'action en haut
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                      const Text(
-                        "Mon Profil",
-                        style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.logout, color: Colors.white, size: 28),
-                        onPressed: () {
-                          // TODO: Ajouter la fonction de déconnexion ici plus tard
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-                
-                // Avatar
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 60, color: Colors.orange),
-                ),
-                const SizedBox(height: 15),
-                
-                // Pseudo
-                Text(
-                  pseudo,
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
-                ),
-                
-                const SizedBox(height: 5),
-                
-                // Titre du Niveau
-                Text(
-                  "Niveau ${levelInfo['level']} : ${levelInfo['title']}",
-                  style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.w500),
-                ),
-
-                const SizedBox(height: 15),
-
-                // 📊 LA BARRE D'EXPÉRIENCE
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 50),
-                  child: Column(
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: LinearProgressIndicator(
-                          value: progress,
-                          minHeight: 12,
-                          backgroundColor: Colors.black.withOpacity(0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "$score / $maxXp XP",
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      )
-                    ],
-                  ),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            pseudo,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [
+                Shadow(
+                  color: Colors.black38,
+                  blurRadius: 15,
                 ),
               ],
             ),
           ),
-
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: Colors.white.withOpacity(0.5),
+                width: 1.5,
+              ),
+            ),
+            child: Text(
+              "Niveau ${levelInfo['level']} : ${levelInfo['title']}",
+              style: const TextStyle(
+                fontSize: 16,
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
           const SizedBox(height: 20),
-
-          // ⬜ LES CARTES DE STATISTIQUES
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 30),
+            child: Column(
               children: [
-                Row(
-                  children: [
-                    Expanded(child: _buildStatCard(Icons.star, Colors.amber, "$score pts", "Score Total")),
-                    const SizedBox(width: 15),
-                    Expanded(child: _buildStatCard(Icons.local_fire_department, Colors.redAccent, "$streak jours", "Série")),
-                  ],
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(15),
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.white.withOpacity(0.6),
+                        Colors.white.withOpacity(0.3),
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white.withOpacity(0.3),
+                        blurRadius: 15,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      minHeight: 14,
+                      backgroundColor: const Color(0xFF1A1A1A),
+                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 15),
-                _buildStatCard(Icons.check_circle, Colors.green, "$totalMissions", "Missions Terminées"),
+                const SizedBox(height: 10),
+                Text(
+                  "$score / $maxXp XP",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    shadows: [
+                      Shadow(
+                        color: Colors.black26,
+                        blurRadius: 8,
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -169,37 +292,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 🛠️ WIDGET RÉUTILISABLE POUR LES CARTES
   Widget _buildStatCard(IconData icon, Color iconColor, String value, String label) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.white,
         borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [
+            iconColor.withOpacity(0.6),
+            iconColor.withOpacity(0.3),
+          ],
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
+            color: iconColor.withOpacity(0.4),
+            blurRadius: 20,
             spreadRadius: 2,
-            offset: const Offset(0, 5),
-          )
+          ),
         ],
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 40, color: iconColor),
-          const SizedBox(height: 10),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: iconColor.withOpacity(0.5),
+            width: 1,
           ),
-          const SizedBox(height: 5),
-          Text(
-            label,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
-          ),
-        ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [
+                    iconColor.withOpacity(0.3),
+                    iconColor.withOpacity(0.1),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: iconColor.withOpacity(0.6),
+                  width: 2,
+                ),
+              ),
+              child: Icon(icon, size: 36, color: iconColor),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              value,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.white.withOpacity(0.7),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
