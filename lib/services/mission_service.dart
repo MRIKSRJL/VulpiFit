@@ -14,11 +14,14 @@ class MissionService {
   // 1. CONNEXION
   static Future<bool> login(String pseudo, String password) async {
     try {
+      print("🟡 Tentative de connexion pour '$pseudo'...");
       final response = await http.post(
         Uri.parse("$baseUrl/Users/login"),
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"pseudo": pseudo, "password": password}),
-      ).timeout(const Duration(seconds: 30)); // ⏱️ Bouclier chrono
+      ).timeout(const Duration(seconds: 30));
+
+      print("🔵 Réponse Azure (Login) : Code ${response.statusCode} | Message : ${response.body}");
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -34,6 +37,7 @@ class MissionService {
         if (tokenString != null) {
           await prefs.setString('jwt_token', tokenString);
         }
+        print("🟢 Connexion réussie ! Token et ID sauvegardés.");
         return true; 
       }
       return false; 
@@ -49,30 +53,34 @@ class MissionService {
     }
   }
 
-  // 2. INSCRIPTION
+  // 2. INSCRIPTION CORRIGÉE 
   static Future<bool> register(String pseudo, String password) async {
     try {
+      print("🟡 Tentative de création de compte pour '$pseudo'...");
       final response = await http.post(
-        Uri.parse("$baseUrl/Auth/register"),
+        Uri.parse("$baseUrl/Users"), // 👈 C'est ICI qu'était l'erreur (pas de /Auth/register)
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({"pseudo": pseudo, "password": password}),
       ).timeout(const Duration(seconds: 30));
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        currentUserId = data['id'];
-        currentUserPseudo = data['pseudo'];
+      print("🔵 Réponse Azure (Register) : Code ${response.statusCode} | Message : ${response.body}");
 
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setInt('userId', currentUserId);
-        return true;
+      if (response.statusCode == 201) {
+        print("🟢 Compte créé avec succès ! On lance la connexion automatique...");
+        // 🚀 On lance le Login juste après pour récupérer le Token VIP vital
+        return await login(pseudo, password);
+      } else {
+        print("🔴 Échec de l'inscription. Azure a refusé.");
+        return false;
       }
-      return false;
     } on SocketException {
+      print("📶 Pas de connexion internet");
       return false;
     } on TimeoutException {
+      print("🐢 Délai d'attente dépassé");
       return false;
     } catch (e) {
+      print("❌ Erreur Register: $e");
       return false;
     }
   }
@@ -130,7 +138,7 @@ class MissionService {
           "Content-Type": "application/json",
           "Authorization": "Bearer $token"
         },
-      ).timeout(const Duration(seconds: 30)); // ⏱️ Bouclier 10 secondes
+      ).timeout(const Duration(seconds: 30)); // ⏱️ Bouclier 30 secondes
 
       if (response.statusCode == 200) {
         List jsonResponse = json.decode(response.body);
@@ -302,6 +310,38 @@ class MissionService {
       return response.statusCode == 200 || response.statusCode == 201;
     } catch (e) {
       print("💥 ERREUR lors de l'enregistrement de l'exercice : $e");
+      return false;
+    }
+  }
+
+  // 11. SUPPRIMER LE COMPTE DÉFINITIVEMENT
+  static Future<bool> deleteAccount() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final int? userId = prefs.getInt('userId');
+      final String? token = prefs.getString('jwt_token');
+
+      if (userId == null || token == null) return false;
+
+      print("🟡 Tentative de suppression du compte ID: $userId");
+
+      final response = await http.delete(
+        Uri.parse('$baseUrl/Users/$userId'),
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token" // On envoie le bracelet VIP par sécurité
+        },
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 204 || response.statusCode == 200) {
+        print("🟢 Compte désintégré avec succès !");
+        return true;
+      } else {
+        print("🔴 Échec suppression : Code ${response.statusCode} | Erreur : ${response.body}");
+        return false;
+      }
+    } catch (e) {
+      print("❌ Erreur Flutter lors de la suppression : $e");
       return false;
     }
   }

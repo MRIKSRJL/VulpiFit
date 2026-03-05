@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart'; // 👈 IMPORT IMPORTANT
+import 'package:intl/date_symbol_data_local.dart';
+
 import 'sport_screen.dart';
 import 'profile_screen.dart';
 import 'mental_screen.dart';
@@ -6,7 +9,6 @@ import 'nutrition_screen.dart';
 import 'services/mission_service.dart';
 import 'auth_screen.dart';
 import 'progress_screen.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,20 +16,24 @@ void main() async {
   // 🇫🇷 CHARGEMENT DU DICTIONNAIRE FRANÇAIS POUR LES DATES
   await initializeDateFormatting('fr_FR', null);
 
-  // --- TEST DE CONNEXION ---
-  print("🔵 TENTATIVE DE CONNEXION A L'API...");
-  try {
-    await MissionService.getMissions();
-    print("🟢 API ACCESSIBLE");
-  } catch (e) {
-    print("🔴 ECHEC CONNEXION API : $e");
-  }
+  // 🛑 J'ai supprimé l'appel réseau ici. On ne dérange pas l'API tant qu'on ne sait pas si on a un token !
 
   runApp(const FitnessFoxApp());
 }
 
 class FitnessFoxApp extends StatelessWidget {
   const FitnessFoxApp({super.key});
+
+  // 🕵️‍♂️ VÉRIFICATION SILENCIEUSE : A-t-on un token enregistré dans le téléphone ?
+  Future<bool> _checkIfLoggedIn() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('jwt_token');
+      return token != null && token.isNotEmpty;
+    } catch (e) {
+      return false; // En cas de doute, on dit qu'on n'est pas connecté
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +44,28 @@ class FitnessFoxApp extends StatelessWidget {
         primarySwatch: Colors.orange,
         useMaterial3: true,
       ),
-      home: const AuthScreen(),
+      // 🚦 L'AIGUILLEUR : Décide quelle page afficher au démarrage
+      home: FutureBuilder<bool>(
+        future: _checkIfLoggedIn(),
+        builder: (context, snapshot) {
+          // 1. Pendant qu'on cherche dans la mémoire (ça prend quelques millisecondes)
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+              backgroundColor: Colors.orange,
+              body: Center(child: CircularProgressIndicator(color: Colors.white)),
+            );
+          }
+          
+          // 2. Si on a trouvé un token (l'utilisateur est déjà connecté)
+          if (snapshot.data == true) {
+            return const DashboardScreen();
+          } 
+          // 3. Sinon (nouvel utilisateur ou compte supprimé)
+          else {
+            return const AuthScreen();
+          }
+        },
+      ),
     );
   }
 }
@@ -82,14 +109,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     showDialog(
       context: context,
-      barrierDismissible: false, // L'utilisateur doit cliquer sur un bouton pour fermer
+      barrierDismissible: false,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          insetPadding: const EdgeInsets.all(20), // Donne de l'air quand le clavier monte
+          insetPadding: const EdgeInsets.all(20),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: const Text("Bilan du jour 🦊", textAlign: TextAlign.center),
           
-          // LE CONTENU QUI PEUT SCROLLER EST ICI 👇
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -121,9 +147,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
           ), 
-          // FIN DU CONTENU SCROLLABLE 👆
-
-          // LES BOUTONS SONT BIEN DANS L'ALERTDIALOG 👇
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -166,7 +189,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
-          // BOUTON ROADMAP / STATISTIQUES
           IconButton(
             icon: const Icon(Icons.trending_up, color: Colors.white, size: 30),
             tooltip: "Ma Roadmap",
@@ -177,7 +199,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               );
             },
           ),
-          // BOUTON EXISTANT : PROFIL
           IconButton(
             icon: const Icon(Icons.account_circle, color: Colors.white, size: 30),
             onPressed: () => Navigator.push(
@@ -190,7 +211,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // Header Stats
             Container(
               padding: const EdgeInsets.symmetric(vertical: 20),
               color: Colors.orange.withOpacity(0.1),
@@ -219,7 +239,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             
-            // Liste des catégories
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.all(20),
@@ -256,7 +275,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      // Bouton pour le bilan quotidien
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _showFeedbackDialog,
         label: const Text("Bilan du jour"),

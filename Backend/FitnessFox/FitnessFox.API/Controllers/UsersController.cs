@@ -137,6 +137,30 @@ namespace FitnessFox.API.Controllers
             return Ok(logs);
         }
 
+        // 👇 NOUVELLE MISSION : Le droit à l'oubli
+        // DELETE: api/Users/5
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            // 1. On cherche l'utilisateur dans la base de données
+            var user = await _context.Users.FindAsync(id);
+
+            // 2. Si on ne le trouve pas, on renvoie une erreur 404
+            if (user == null)
+            {
+                return NotFound(new { message = "Utilisateur introuvable." });
+            }
+
+            // 3. Si on le trouve, on donne l'ordre de le supprimer
+            _context.Users.Remove(user);
+
+            // 4. On sauvegarde la modification dans le Cloud Azure
+            await _context.SaveChangesAsync();
+
+            // 5. On renvoie un code 204 (No Content) pour dire que tout s'est bien passé
+            return NoContent();
+        }
+
         // --- CLASSES DTO (Moules de données) ---
 
         public class FeedbackRequest
@@ -145,7 +169,6 @@ namespace FitnessFox.API.Controllers
             public int DifficultyLevel { get; set; }
         }
 
-        // 👇 NOUVEAU DTO POUR LE LOGIN
         public class LoginRequest
         {
             public string Pseudo { get; set; } = "";

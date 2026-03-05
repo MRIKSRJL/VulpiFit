@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
 import 'services/mission_service.dart';
+import 'auth_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,6 +16,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int score = 0;
   int streak = 0;
   int totalMissions = 0;
+  int? userId; // 👈 On ajoute l'ID de l'utilisateur pour la suppression
+
+
 
   @override
   void initState() {
@@ -21,13 +27,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   void _loadProfileData() async {
+    // 1. On charge les stats
     var stats = await MissionService.getUserStats();
+    
+    // 2. On récupère l'ID du joueur stocké sur le téléphone (pour pouvoir le supprimer)
+    final prefs = await SharedPreferences.getInstance();
+    
     setState(() {
       pseudo = stats['pseudo'] ?? "Inconnu";
       score = stats['score'] ?? 0;
       streak = stats['streak'] ?? 0;
       totalMissions = stats['total'] ?? 0;
+      userId = prefs.getInt('userId'); // Assure-toi que tu sauves bien 'userId' au login !
     });
+  }
+
+  // 🚪 FONCTION DE DÉCONNEXION
+  void _logout() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear(); // On efface le token et les données locales
+
+    if (mounted) {
+      // 🔄 NOUVELLE FAÇON DE NAVIGUER (Directe et infaillible)
+      Navigator.pushAndRemoveUntil(
+        context,
+        // Remplace "LoginScreen()" par le vrai nom de ta classe (ex: LoginPage(), AuthScreen()...)
+        MaterialPageRoute(builder: (context) => const AuthScreen()), 
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
+
+
+
+
+  // 🚨 BOÎTE DE DIALOGUE DE SÉCURITÉ
+  void _showDeleteConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext ctx) {
+        return AlertDialog(
+          title: const Text("Supprimer mon compte", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+          content: const Text("Attention, cette action est irréversible. Toutes tes missions, tes scores et ton historique seront effacés à jamais. Es-tu sûr ?"),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text("Annuler", style: TextStyle(color: Colors.grey)),
+            ),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              onPressed: () async {
+                Navigator.of(ctx).pop(); // Ferme la boîte de dialogue
+                
+                // 👇 ON UTILISE MAINTENANT LE MISSION SERVICE !
+                bool success = await MissionService.deleteAccount();
+                
+                if (success) {
+                  _logout(); // Si ça a marché, on déconnecte et on renvoie au login
+                } else {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Erreur lors de la suppression. 🦊🔧"),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  }
+                }
+              },
+              child: const Text("Supprimer définitivement", style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   // 🧠 LA LOGIQUE DES NIVEAUX !
@@ -42,12 +116,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // On calcule les infos du niveau actuel
     var levelInfo = _getLevelInfo(score);
     int minXp = levelInfo['min'];
     int maxXp = levelInfo['max'];
     
-    // Calcul du pourcentage de la barre (entre 0.0 et 1.0)
     double progress = (score - minXp) / (maxXp - minXp);
     if (progress < 0) progress = 0;
     if (progress > 1) progress = 1;
@@ -69,7 +141,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
             child: Column(
               children: [
-                // Boutons d'action en haut
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
@@ -83,43 +154,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         "Mon Profil",
                         style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
                       ),
+                      // 👇 Le bouton de déconnexion est maintenant branché !
                       IconButton(
                         icon: const Icon(Icons.logout, color: Colors.white, size: 28),
-                        onPressed: () {
-                          // TODO: Ajouter la fonction de déconnexion ici plus tard
-                          Navigator.pop(context);
-                        },
+                        onPressed: _logout, 
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-                
-                // Avatar
                 const CircleAvatar(
                   radius: 50,
                   backgroundColor: Colors.white,
                   child: Icon(Icons.person, size: 60, color: Colors.orange),
                 ),
                 const SizedBox(height: 15),
-                
-                // Pseudo
                 Text(
                   pseudo,
                   style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
                 ),
-                
                 const SizedBox(height: 5),
-                
-                // Titre du Niveau
                 Text(
                   "Niveau ${levelInfo['level']} : ${levelInfo['title']}",
                   style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.w500),
                 ),
-
                 const SizedBox(height: 15),
-
-                // 📊 LA BARRE D'EXPÉRIENCE
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 50),
                   child: Column(
@@ -147,7 +206,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           const SizedBox(height: 20),
 
-          // ⬜ LES CARTES DE STATISTIQUES
+          // ⬜ LES CARTES DE STATISTIQUES ET LE BOUTON ROUGE
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -161,6 +220,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 const SizedBox(height: 15),
                 _buildStatCard(Icons.check_circle, Colors.green, "$totalMissions", "Missions Terminées"),
+                
+                const SizedBox(height: 40), // Espace avant le bouton de suppression
+                
+                // 👇 LE NOUVEAU BOUTON DE SUPPRESSION
+                OutlinedButton.icon(
+                  onPressed: () => _showDeleteConfirmation(context),
+                  icon: const Icon(Icons.delete_forever, color: Colors.red),
+                  label: const Text("Supprimer mon compte", style: TextStyle(color: Colors.red, fontSize: 16)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 15),
+                    side: const BorderSide(color: Colors.red, width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                  ),
+                ),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -169,7 +243,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 🛠️ WIDGET RÉUTILISABLE POUR LES CARTES
   Widget _buildStatCard(IconData icon, Color iconColor, String value, String label) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),

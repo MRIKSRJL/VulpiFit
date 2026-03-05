@@ -3,8 +3,9 @@
     "",
     "\\Backend",
     "\\Backend\\FitnessFox",
-    "\\Backend\\FitnessFox\\FitnessFox.API"
+    "\\Backend\\FitnessFox\\FitnessFox.API",
+    "\\lib"
   ],
-  "SelectedNode": "\\Backend\\FitnessFox\\FitnessFox.slnx",
+  "SelectedNode": "\\pubspec.yaml",
   "PreviewInSolutionExplorer": false
 }
