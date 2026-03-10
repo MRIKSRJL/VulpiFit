@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="VulpiFit.API/VulpiFit.API.csproj" />
+  <Project Path="VulpiFit.Web/VulpiFit.csproj" />
+</Solution>
