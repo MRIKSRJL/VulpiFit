@@ -6,7 +6,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. LA CLÉ SECRÈTE DE FITNESS FOX (À garder secrète !)
+// 1. LA CLÉ SECRÈTE DE VulpiFit (À garder secrète !)
 var jwtKey = "LaCleSecreteDeVulpiFitSuperLongueEtSecurisee2026!"; // Doit faire au moins 32 caractères
 var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 

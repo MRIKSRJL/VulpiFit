@@ -18,11 +18,11 @@ void main() async {
 
   // 🛑 J'ai supprimé l'appel réseau ici. On ne dérange pas l'API tant qu'on ne sait pas si on a un token !
 
-  runApp(const FitnessFoxApp());
+  runApp(const VulpiFitApp());
 }
 
-class FitnessFoxApp extends StatelessWidget {
-  const FitnessFoxApp({super.key});
+class VulpiFitApp extends StatelessWidget {
+  const VulpiFitApp({super.key});
 
   // 🕵️‍♂️ VÉRIFICATION SILENCIEUSE : A-t-on un token enregistré dans le téléphone ?
   Future<bool> _checkIfLoggedIn() async {
@@ -39,7 +39,7 @@ class FitnessFoxApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Fitness Fox',
+      title: 'VulpiFit',
       theme: ThemeData(
         primarySwatch: Colors.orange,
         useMaterial3: true,
@@ -185,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       appBar: AppBar(
         backgroundColor: Colors.orange,
         elevation: 0,
-        title: const Text('Fitness Fox 🦊',
+        title: const Text('VulpiFit 🦊',
             style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [

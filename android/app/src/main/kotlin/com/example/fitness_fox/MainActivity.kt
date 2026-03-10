@@ -1,4 +1,4 @@
-package com.example.fitness_fox
+package com.example.VulpiFit
 
 import io.flutter.embedding.android.FlutterActivity
 

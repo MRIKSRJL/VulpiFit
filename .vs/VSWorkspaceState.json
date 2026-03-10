@@ -2,8 +2,8 @@
   "ExpandedNodes": [
     "",
     "\\Backend",
-    "\\Backend\\FitnessFox",
-    "\\Backend\\FitnessFox\\FitnessFox.API",
+    "\\Backend\\VulpiFit",
+    "\\Backend\\VulpiFit\\VulpiFit.API",
     "\\lib"
   ],
   "SelectedNode": "\\pubspec.yaml",

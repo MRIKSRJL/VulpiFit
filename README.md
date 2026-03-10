@@ -1,4 +1,4 @@
-# 🦊 Fitness Fox
+# 🦊 VulpiFit
 
 ![Flutter](https://img.shields.io/badge/Flutter-02569B?style=for-the-badge&logo=flutter&logoColor=white)
 ![.NET](https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)
@@ -9,7 +9,7 @@
 
 ## 📖 Présentation du Projet
 
-**Fitness Fox** est une application mobile de gamification sportive développée dans le cadre du module **Développement C#.Net (IF 2026)**.
+**VulpiFit** est une application mobile de gamification sportive développée dans le cadre du module **Développement C#.Net (IF 2026)**.
 
 L'objectif est de lutter contre la perte de motivation en appliquant des mécaniques de jeu vidéo à la santé physique. L'utilisateur doit maintenir une **Série (Streak)** en validant quotidiennement trois types de missions : Sport, Nutrition et Activité.
 
@@ -59,7 +59,7 @@ Pour tester le projet complet, vous devez lancer l'API (Back) puis l'Application
 
 ### 1. Démarrer l'API (Back-end)
 ```bash
-cd FitnessFox.API
+cd VulpiFit.API
 # Restauration des dépendances et création de la BDD
 dotnet ef database update
 # Lancement du serveur

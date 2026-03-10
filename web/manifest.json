@@ -1,6 +1,6 @@
 {
-    "name": "fitness_fox",
-    "short_name": "fitness_fox",
+    "name": "VulpiFit",
+    "short_name": "VulpiFit",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
