@@ -148,5 +148,13 @@ namespace VulpiFit.API.Controllers
             }
             return Ok();
         }
+        // 🚨 ROUTE SPÉCIALE POUR LE SITE WEB ADMIN (MVC)
+        [HttpGet]
+        [AllowAnonymous] // Ce badge magique dit au videur de laisser passer la requête sans Token VIP
+        public async Task<ActionResult<IEnumerable<Mission>>> GetAllMissionsForAdmin()
+        {
+            // L'API va chercher toutes les missions dans la base de données et les donne au site Web
+            return await _context.Missions.ToListAsync();
+        }
     }
 }

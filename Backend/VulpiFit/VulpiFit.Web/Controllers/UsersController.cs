@@ -1,28 +1,28 @@
-﻿using VulpiFit.Web.Models;
-using Microsoft.AspNetCore.Mvc;
-using Newtonsoft.Json;
+﻿using Microsoft.AspNetCore.Mvc;
+using System.Text.Json;
+using VulpiFit.Web.Models;
 
 namespace VulpiFit.Web.Controllers
 {
     public class UsersController : Controller
     {
-        private readonly string _apiBaseUrl = "http://localhost:5045/api/Users"; // Vérifie ton port !
-        private readonly HttpClient _client;
-
-        public UsersController()
-        {
-            _client = new HttpClient();
-        }
+        // On pointe vers ton vrai serveur Azure
+        private readonly string _apiUsersUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Users";
+        private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
         public async Task<IActionResult> Index()
         {
             List<User> users = new List<User>();
-            HttpResponseMessage response = await _client.GetAsync(_apiBaseUrl);
 
-            if (response.IsSuccessStatusCode)
+            using (var client = new HttpClient())
             {
-                string data = await response.Content.ReadAsStringAsync();
-                users = JsonConvert.DeserializeObject<List<User>>(data);
+                var response = await client.GetAsync(_apiUsersUrl);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    users = JsonSerializer.Deserialize<List<User>>(jsonString, _jsonOptions);
+                }
             }
 
             return View(users);

@@ -1,35 +1,50 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering; // Pour la liste déroulante
-using Microsoft.EntityFrameworkCore;        // Pour ToListAsync
-using VulpiFit.Web.Data;                  // Pour ApplicationDbContext
-using VulpiFit.Web.Models;                // Pour Mission
+using Microsoft.AspNetCore.Mvc.Rendering;
+using System.Text;
+using System.Text.Json;
+using VulpiFit.Web.Models; // Vérifie bien que c'est le namespace de ton projet
 
 namespace VulpiFit.Web.Controllers
 {
     public class MissionsController : Controller
     {
-        // 👇 ICI : On déclare la connexion à la base de données
-        private readonly ApplicationDbContext _context;
-
-        // 👇 LE CONSTRUCTEUR : On injecte la connexion
-        public MissionsController(ApplicationDbContext context)
-        {
-            _context = context;
-        }
+        // 🌐 Les adresses de ton API Azure
+        private readonly string _apiMissionsUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Missions";
+        private readonly string _apiUsersUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Users";
+        private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
         // 1. AFFICHER LA LISTE (GET)
         public async Task<IActionResult> Index()
         {
-            // On demande directement à la base de données, plus besoin d'API ici !
-            return View(await _context.Missions.ToListAsync());
+            List<Mission> missions = new List<Mission>();
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync(_apiMissionsUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    missions = JsonSerializer.Deserialize<List<Mission>>(jsonString, _jsonOptions);
+                }
+            }
+            return View(missions);
         }
 
         // 2. AFFICHER LE FORMULAIRE (GET)
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
-            // On charge la liste des joueurs pour le menu déroulant
-            // Si _context est souligné en rouge ici avant, maintenant ça marchera !
-            ViewData["Users"] = new SelectList(_context.Users, "Id", "Pseudo");
+            // On récupère la liste des utilisateurs via l'API pour le menu déroulant
+            List<User> users = new List<User>();
+            using (var client = new HttpClient())
+            {
+                var response = await client.GetAsync(_apiUsersUrl);
+                if (response.IsSuccessStatusCode)
+                {
+                    var jsonString = await response.Content.ReadAsStringAsync();
+                    users = JsonSerializer.Deserialize<List<User>>(jsonString, _jsonOptions);
+                }
+            }
+
+            ViewData["Users"] = new SelectList(users, "Id", "Pseudo");
             return View();
         }
 
@@ -38,24 +53,33 @@ namespace VulpiFit.Web.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Mission mission)
         {
-            // On force les valeurs par défaut
             mission.IsCompleted = false;
 
-            // On sauvegarde dans la base V5
-            _context.Add(mission);
-            await _context.SaveChangesAsync();
+            using (var client = new HttpClient())
+            {
+                // On transforme l'objet mission en texte JSON
+                var jsonContent = new StringContent(JsonSerializer.Serialize(mission), Encoding.UTF8, "application/json");
 
-            return RedirectToAction(nameof(Index));
+                // On l'envoie à l'API !
+                var response = await client.PostAsync(_apiMissionsUrl, jsonContent);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    return RedirectToAction(nameof(Index));
+                }
+            }
+
+            // En cas d'échec, on réaffiche le formulaire
+            return View(mission);
         }
 
-        // 4. SUPPRIMER (Bonus : version BDD)
+        // 4. SUPPRIMER (via l'API)
         public async Task<IActionResult> Delete(int id)
         {
-            var mission = await _context.Missions.FindAsync(id);
-            if (mission != null)
+            using (var client = new HttpClient())
             {
-                _context.Missions.Remove(mission);
-                await _context.SaveChangesAsync();
+                // On demande à l'API de supprimer la mission
+                await client.DeleteAsync($"{_apiMissionsUrl}/{id}");
             }
             return RedirectToAction(nameof(Index));
         }

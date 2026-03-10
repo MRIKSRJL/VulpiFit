@@ -6,7 +6,7 @@ import 'dart:io';    // 🛡️ Pour détecter les coupures réseau (SocketExcep
 import 'dart:async'; // ⏱️ Pour gérer le chronomètre (TimeoutException)
 
 class MissionService {
-  static const String baseUrl = "https://VulpiFitapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api"; 
+  static const String baseUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api"; 
 
   static int currentUserId = 0; 
   static String currentUserPseudo = "";
