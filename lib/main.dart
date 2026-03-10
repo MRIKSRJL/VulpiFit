@@ -50,25 +50,38 @@ class DashboardScreen extends StatefulWidget {
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+class _DashboardScreenState extends State<DashboardScreen> with SingleTickerProviderStateMixin {
   int score = 0;
   int streak = 0;
+  int totalMissions = 0;
+  late AnimationController _animationController;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 200),
+      vsync: this,
+    );
     _loadUserData();
   }
 
-  // --- LOGIQUE DE DONNÉES ---
+  @override
+  void dispose() {
+    _animationController.dispose();
+    super.dispose();
+  }
 
   void _loadUserData() async {
     try {
       var stats = await MissionService.getUserStats();
-      setState(() {
-        score = stats['score'] ?? 0;
-        streak = stats['streak'] ?? 0;
-      });
+      if (mounted) {
+        setState(() {
+          score = stats['score'] ?? 0;
+          streak = stats['streak'] ?? 0;
+          totalMissions = stats['total'] ?? 0;
+        });
+      }
     } catch (e) {
       print("Erreur chargement stats : $e");
     }
@@ -154,152 +167,364 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // --- INTERFACE ---
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.orange,
-        elevation: 0,
-        title: const Text('Fitness Fox 🦊',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        actions: [
-          // BOUTON ROADMAP / STATISTIQUES
-          IconButton(
-            icon: const Icon(Icons.trending_up, color: Colors.white, size: 30),
-            tooltip: "Ma Roadmap",
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProgressScreen()),
-              );
-            },
+      backgroundColor: Colors.black,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F0F0F), Color(0xFF1A1A1A)],
           ),
-          // BOUTON EXISTANT : PROFIL
-          IconButton(
-            icon: const Icon(Icons.account_circle, color: Colors.white, size: 30),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const ProfileScreen()),
-            ).then((_) => _loadUserData()),
-          )
-        ],
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              const SizedBox(height: 20),
+              _buildStatsSection(),
+              const SizedBox(height: 30),
+              Expanded(
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  children: [
+                    const Text(
+                      "Tes Missions",
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _MissionCardNeon(
+                      title: "Sport",
+                      icon: Icons.fitness_center,
+                      accentColor: const Color(0xFF00F5FF),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const SportScreen()),
+                      ).then((_) => _loadUserData()),
+                    ),
+                    const SizedBox(height: 16),
+                    _MissionCardNeon(
+                      title: "Nutrition",
+                      icon: Icons.restaurant,
+                      accentColor: const Color(0xFF39FF14),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const NutritionScreen()),
+                      ).then((_) => _loadUserData()),
+                    ),
+                    const SizedBox(height: 16),
+                    _MissionCardNeon(
+                      title: "Mental",
+                      icon: Icons.psychology,
+                      accentColor: const Color(0xFFBF00FF),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const MentalScreen()),
+                      ).then((_) => _loadUserData()),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header Stats
-            Container(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              color: Colors.orange.withOpacity(0.1),
-              child: Column(
-                children: [
-                  const Text('Ton Score Actuel', style: TextStyle(fontSize: 18)),
-                  Text(
-                    '$score Points',
-                    style: const TextStyle(
-                        fontSize: 42, color: Colors.orange, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.local_fire_department, color: Colors.deepOrange),
-                      const SizedBox(width: 5),
-                      Text('Série : $streak Jours',
-                          style: const TextStyle(
-                              fontSize: 18,
-                              color: Colors.deepOrange,
-                              fontWeight: FontWeight.bold)),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            
-            // Liste des catégories
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.all(20),
-                children: [
-                  _buildCategoryButton(
-                    context,
-                    title: "Sport",
-                    icon: Icons.fitness_center,
-                    color: Colors.blue.shade100,
-                    iconColor: Colors.blue,
-                    screen: const SportScreen(),
-                  ),
-                  const SizedBox(height: 15),
-                  _buildCategoryButton(
-                    context,
-                    title: "Nutrition",
-                    icon: Icons.restaurant,
-                    color: Colors.green.shade100,
-                    iconColor: Colors.green,
-                    screen: const NutritionScreen(),
-                  ),
-                  const SizedBox(height: 15),
-                  _buildCategoryButton(
-                    context,
-                    title: "Mental",
-                    icon: Icons.self_improvement,
-                    color: Colors.purple.shade100,
-                    iconColor: Colors.purple,
-                    screen: const MentalScreen(),
-                  ),
-                ],
-              ),
+      floatingActionButton: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: const Color(0xFFFF6B35).withOpacity(0.5),
+              blurRadius: 20,
+              spreadRadius: 2,
             ),
           ],
         ),
-      ),
-      // Bouton pour le bilan quotidien
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showFeedbackDialog,
-        label: const Text("Bilan du jour"),
-        icon: const Icon(Icons.psychology_alt),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
+        child: FloatingActionButton.extended(
+          onPressed: _showFeedbackDialog,
+          label: const Text("Bilan du jour"),
+          icon: const Icon(Icons.psychology_alt),
+          backgroundColor: const Color(0xFFFF6B35),
+          foregroundColor: Colors.white,
+        ),
       ),
     );
   }
 
-  Widget _buildCategoryButton(BuildContext context,
-      {required String title,
-      required IconData icon,
-      required Color color,
-      required Color iconColor,
-      required Widget screen}) {
-    return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => screen),
-      ).then((_) => _loadUserData()),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(20),
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                colors: [
+                  const Color(0xFFFF6B35).withOpacity(0.3),
+                  const Color(0xFFFF6B35).withOpacity(0.1),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(15),
+              border: Border.all(
+                color: const Color(0xFFFF6B35).withOpacity(0.5),
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF6B35).withOpacity(0.3),
+                  blurRadius: 15,
+                  spreadRadius: 2,
+                ),
+              ],
+            ),
+            child: const Text(
+              "🦊",
+              style: TextStyle(fontSize: 32),
+            ),
+          ),
+          const Text(
+            "Fitness Fox",
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
+          ),
+          Row(
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00F5FF).withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.trending_up, color: Color(0xFF00F5FF), size: 28),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProgressScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFBF00FF).withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 2,
+                    ),
+                  ],
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.account_circle, color: Color(0xFFBF00FF), size: 28),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ProfileScreen()),
+                  ).then((_) => _loadUserData()),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsSection() {
+    double successRate = totalMissions > 0 ? (score / (totalMissions * 10) * 100) : 0;
+    if (successRate > 100) successRate = 100;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFFF6B35).withOpacity(0.3),
+          width: 1,
         ),
-        child: Row(
-          children: [
-            Icon(icon, size: 40, color: iconColor),
-            const SizedBox(width: 20),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: iconColor.withOpacity(0.8),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildStatItem("🔥", "$streak", "Série"),
+          Container(width: 1, height: 40, color: Colors.white.withOpacity(0.2)),
+          _buildStatItem("⭐", "$score", "Points"),
+          Container(width: 1, height: 40, color: Colors.white.withOpacity(0.2)),
+          _buildStatItem("🏆", "${successRate.toInt()}%", "Réussite"),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatItem(String emoji, String value, String label) {
+    return Column(
+      children: [
+        Text(emoji, style: const TextStyle(fontSize: 24)),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.white.withOpacity(0.6),
+          ),
+        ),
+      ],
+    );
+  }
+
+}
+
+class _MissionCardNeon extends StatefulWidget {
+  final String title;
+  final IconData icon;
+  final Color accentColor;
+  final VoidCallback onTap;
+
+  const _MissionCardNeon({
+    required this.title,
+    required this.icon,
+    required this.accentColor,
+    required this.onTap,
+  });
+
+  @override
+  State<_MissionCardNeon> createState() => _MissionCardNeonState();
+}
+
+class _MissionCardNeonState extends State<_MissionCardNeon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  bool _isHovered = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 150),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTapDown: (_) => _controller.forward(),
+        onTapUp: (_) {
+          _controller.reverse();
+          widget.onTap();
+        },
+        onTapCancel: () => _controller.reverse(),
+        child: ScaleTransition(
+          scale: _scaleAnimation,
+          child: Container(
+            padding: const EdgeInsets.all(3),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(25),
+              gradient: LinearGradient(
+                colors: [
+                  widget.accentColor.withOpacity(0.6),
+                  widget.accentColor.withOpacity(0.3),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: widget.accentColor.withOpacity(_isHovered ? 0.6 : 0.3),
+                  blurRadius: _isHovered ? 25 : 15,
+                  spreadRadius: _isHovered ? 3 : 0,
+                ),
+              ],
+            ),
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1A1A1A),
+                borderRadius: BorderRadius.circular(23),
+                border: Border.all(
+                  color: widget.accentColor.withOpacity(0.5),
+                  width: 1.5,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      gradient: RadialGradient(
+                        colors: [
+                          widget.accentColor.withOpacity(0.3),
+                          widget.accentColor.withOpacity(0.1),
+                        ],
+                      ),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: widget.accentColor.withOpacity(0.6),
+                        width: 2,
+                      ),
+                    ),
+                    child: ShaderMask(
+                      shaderCallback: (bounds) => LinearGradient(
+                        colors: [widget.accentColor, widget.accentColor.withOpacity(0.7)],
+                      ).createShader(bounds),
+                      child: Icon(widget.icon, size: 40, color: Colors.white),
+                    ),
+                  ),
+                  const SizedBox(width: 20),
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const Spacer(),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    color: widget.accentColor,
+                    size: 20,
+                  ),
+                ],
               ),
             ),
-            const Spacer(),
-            Icon(Icons.arrow_forward_ios, color: iconColor, size: 18),
-          ],
+          ),
         ),
       ),
     );

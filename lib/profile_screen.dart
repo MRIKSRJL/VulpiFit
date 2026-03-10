@@ -32,12 +32,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   // 🧠 LA LOGIQUE DES NIVEAUX !
   Map<String, dynamic> _getLevelInfo(int currentScore) {
-    if (currentScore < 100) return {"level": 1, "title": "Jeune Renardeau 🐾", "min": 0, "max": 100};
-    if (currentScore < 300) return {"level": 2, "title": "Renard Agile 🦊", "min": 100, "max": 300};
-    if (currentScore < 600) return {"level": 3, "title": "Renard Alpha 👑", "min": 300, "max": 600};
-    if (currentScore < 1000) return {"level": 4, "title": "Maître Renard 🌟", "min": 600, "max": 1000};
-    
-    return {"level": 5, "title": "Légende du Fitness 🔥", "min": 1000, "max": 9999};
+    if (currentScore < 100)
+      return {"level": 1, "title": "Jeune Renardeau 🐾", "min": 0, "max": 100};
+    if (currentScore < 300)
+      return {"level": 2, "title": "Renard Agile 🦊", "min": 100, "max": 300};
+    if (currentScore < 600)
+      return {"level": 3, "title": "Renard Alpha 👑", "min": 300, "max": 600};
+    if (currentScore < 1000)
+      return {"level": 4, "title": "Maître Renard 🌟", "min": 600, "max": 1000};
+
+    return {
+      "level": 5,
+      "title": "Légende du Fitness 🔥",
+      "min": 1000,
+      "max": 9999,
+    };
   }
 
   @override
@@ -46,7 +55,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     var levelInfo = _getLevelInfo(score);
     int minXp = levelInfo['min'];
     int maxXp = levelInfo['max'];
-    
+
     // Calcul du pourcentage de la barre (entre 0.0 et 1.0)
     double progress = (score - minXp) / (maxXp - minXp);
     if (progress < 0) progress = 0;
@@ -73,13 +82,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     Row(
                       children: [
-                        Expanded(child: _buildStatCard(Icons.star, const Color(0xFFFFA94D), "$score pts", "Score Total")),
+                        Expanded(
+                          child: _buildStatCard(
+                            Icons.star,
+                            const Color(0xFFFFA94D),
+                            "$score pts",
+                            "Score Total",
+                          ),
+                        ),
                         const SizedBox(width: 15),
-                        Expanded(child: _buildStatCard(Icons.local_fire_department, const Color(0xFFFF6B35), "$streak jours", "Série")),
+                        Expanded(
+                          child: _buildStatCard(
+                            Icons.local_fire_department,
+                            const Color(0xFFFF6B35),
+                            "$streak jours",
+                            "Série",
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 15),
-                    _buildStatCard(Icons.check_circle, const Color(0xFF39FF14), "$totalMissions", "Missions Terminées"),
+                    _buildStatCard(
+                      Icons.check_circle,
+                      const Color(0xFF39FF14),
+                      "$totalMissions",
+                      "Missions Terminées",
+                    ),
                   ],
                 ),
               ),
@@ -90,7 +118,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildHeader(BuildContext context, Map<String, dynamic> levelInfo, double progress, int minXp, int maxXp) {
+  Widget _buildHeader(
+    BuildContext context,
+    Map<String, dynamic> levelInfo,
+    double progress,
+    int minXp,
+    int maxXp,
+  ) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(25),
@@ -127,7 +161,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: 28,
+                  ),
                   onPressed: () => Navigator.pop(context),
                 ),
               ),
@@ -137,12 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontSize: 24,
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
-                  shadows: [
-                    Shadow(
-                      color: Colors.black26,
-                      blurRadius: 10,
-                    ),
-                  ],
+                  shadows: [Shadow(color: Colors.black26, blurRadius: 10)],
                 ),
               ),
               Container(
@@ -188,10 +221,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: Container(
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(
-                    color: const Color(0xFFFF6B35),
-                    width: 3,
-                  ),
+                  border: Border.all(color: const Color(0xFFFF6B35), width: 3),
                 ),
                 child: const CircleAvatar(
                   radius: 47,
@@ -208,12 +238,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               fontSize: 32,
               fontWeight: FontWeight.bold,
               color: Colors.white,
-              shadows: [
-                Shadow(
-                  color: Colors.black38,
-                  blurRadius: 15,
-                ),
-              ],
+              shadows: [Shadow(color: Colors.black38, blurRadius: 15)],
             ),
           ),
           const SizedBox(height: 8),
@@ -265,7 +290,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       value: progress,
                       minHeight: 14,
                       backgroundColor: const Color(0xFF1A1A1A),
-                      valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Colors.white,
+                      ),
                     ),
                   ),
                 ),
@@ -276,12 +303,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
-                    shadows: [
-                      Shadow(
-                        color: Colors.black26,
-                        blurRadius: 8,
-                      ),
-                    ],
+                    shadows: [Shadow(color: Colors.black26, blurRadius: 8)],
                   ),
                 ),
               ],
@@ -292,16 +314,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(IconData icon, Color iconColor, String value, String label) {
+  Widget _buildStatCard(
+    IconData icon,
+    Color iconColor,
+    String value,
+    String label,
+  ) {
     return Container(
       padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
         gradient: LinearGradient(
-          colors: [
-            iconColor.withOpacity(0.6),
-            iconColor.withOpacity(0.3),
-          ],
+          colors: [iconColor.withOpacity(0.6), iconColor.withOpacity(0.3)],
         ),
         boxShadow: [
           BoxShadow(
@@ -316,10 +340,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         decoration: BoxDecoration(
           color: const Color(0xFF1A1A1A),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: iconColor.withOpacity(0.5),
-            width: 1,
-          ),
+          border: Border.all(color: iconColor.withOpacity(0.5), width: 1),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -334,10 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: iconColor.withOpacity(0.6),
-                  width: 2,
-                ),
+                border: Border.all(color: iconColor.withOpacity(0.6), width: 2),
               ),
               child: Icon(icon, size: 36, color: iconColor),
             ),

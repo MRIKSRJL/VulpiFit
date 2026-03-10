@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
-import 'package:intl/intl.dart'; // Utile pour formater les dates proprement
+import 'package:intl/intl.dart';
 import 'services/mission_service.dart';
 
 class ProgressScreen extends StatefulWidget {
@@ -23,9 +23,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
   void _loadProgress() async {
     var data = await MissionService.getUserProgress();
     
-    // 💡 L'ASTUCE MAGIQUE ADAPTÉE : 
-    // S'il n'y a qu'un jour, on crée un faux "jour précédent" à 0 XP
-    // pour pouvoir tracer la ligne du gain de ce premier jour !
     if (data.isNotEmpty && data.length == 1) {
       DateTime currentDate = DateTime.parse(data[0]['date'] ?? DateTime.now().toIso8601String());
       DateTime fakeDate = currentDate.subtract(const Duration(days: 1));
@@ -43,7 +40,6 @@ class _ProgressScreenState extends State<ProgressScreen> {
     });
   }
 
-  // 🎨 LA NOUVELLE MÉTHODE FAÇON STRAVA / DUOLINGO
   Widget _buildStravaChart(List<dynamic> logs) {
     if (logs.isEmpty) {
       return const Center(child: Text("Aucune donnée pour le moment.", style: TextStyle(color: Colors.white)));
@@ -51,20 +47,15 @@ class _ProgressScreenState extends State<ProgressScreen> {
 
     List<FlSpot> spots = [];
     List<String> dates = [];
-    
-    // 🧮 Le calcul mathématique des pics d'effort (Daily XP)
     double previousTotal = 0;
     
     for (int i = 0; i < logs.length; i++) {
       double currentTotal = (logs[i]['totalScore'] ?? logs[i]['TotalScore'] ?? 0).toDouble();
-      
-      // On calcule l'effort du jour (Score actuel - Score précédent)
       double dailyGain = currentTotal - previousTotal;
       if (dailyGain < 0) dailyGain = 0; 
       
       spots.add(FlSpot(i.toDouble(), dailyGain));
       
-      // On formate la date (ex: "26 Fév")
       if (logs[i]['date'] != null) {
         DateTime date = DateTime.parse(logs[i]['date']);
         dates.add(DateFormat('dd MMM', 'fr_FR').format(date));
@@ -72,20 +63,24 @@ class _ProgressScreenState extends State<ProgressScreen> {
         dates.add("Jour ${i+1}");
       }
       
-      previousTotal = currentTotal; // On sauvegarde pour le tour suivant
+      previousTotal = currentTotal;
     }
 
     return Container(
       height: 300,
       padding: const EdgeInsets.only(right: 20, left: 10, top: 20, bottom: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E), // Fond gris très sombre
-        borderRadius: BorderRadius.circular(16),
+        color: const Color(0xFF1A1A1A),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: const Color(0xFFFF6B35).withOpacity(0.5),
+          width: 2,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 5),
+            color: const Color(0xFFFF6B35).withOpacity(0.3),
+            blurRadius: 20,
+            spreadRadius: 2,
           )
         ]
       ),
@@ -93,8 +88,8 @@ class _ProgressScreenState extends State<ProgressScreen> {
         LineChartData(
           gridData: FlGridData(
             show: true,
-            drawVerticalLine: false, // Pas de lignes verticales
-            horizontalInterval: 20, // Une ligne tous les 20 XP
+            drawVerticalLine: false,
+            horizontalInterval: 20,
             getDrawingHorizontalLine: (value) {
               return FlLine(color: Colors.white.withOpacity(0.1), strokeWidth: 1);
             },
@@ -140,14 +135,21 @@ class _ProgressScreenState extends State<ProgressScreen> {
           lineBarsData: [
             LineChartBarData(
               spots: spots,
-              isCurved: false, // Lignes droites agressives pour l'intensité !
-              color: Colors.deepOrangeAccent, 
+              isCurved: false,
+              color: const Color(0xFFFF6B35),
               barWidth: 3,
               isStrokeCapRound: true,
-              dotData: const FlDotData(show: true), // Petits points d'intersection
+              dotData: const FlDotData(show: true),
               belowBarData: BarAreaData(
                 show: true,
-                color: Colors.deepOrangeAccent.withOpacity(0.15), // Dégradé en dessous
+                gradient: LinearGradient(
+                  colors: [
+                    const Color(0xFFFF6B35).withOpacity(0.3),
+                    const Color(0xFFFF6B35).withOpacity(0.05),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                ),
               ),
             ),
           ],
@@ -159,47 +161,105 @@ class _ProgressScreenState extends State<ProgressScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text("Ma Roadmap 🦊", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.orange,
-        iconTheme: const IconThemeData(color: Colors.white),
+      backgroundColor: Colors.black,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF0F0F0F), Color(0xFF1A1A1A)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(context),
+              Expanded(
+                child: isLoading 
+                    ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF6B35)))
+                    : progressData.isEmpty
+                        ? const Center(
+                            child: Text(
+                              "Fais ton premier bilan de fin de journée\npour voir ton évolution !",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 16, color: Colors.white70),
+                            ),
+                          )
+                        : Padding(
+                            padding: const EdgeInsets.all(24.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  "Effort Quotidien (XP)", 
+                                  style: TextStyle(
+                                    fontSize: 24, 
+                                    fontWeight: FontWeight.bold, 
+                                    color: Color(0xFFFF6B35),
+                                  )
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  "Visualise les points gagnés chaque jour. Bats ton record !", 
+                                  style: TextStyle(
+                                    fontSize: 14, 
+                                    color: Colors.white.withOpacity(0.7),
+                                  )
+                                ),
+                                const SizedBox(height: 40),
+                                Expanded(
+                                  child: _buildStravaChart(progressData),
+                                ),
+                                const SizedBox(height: 40),
+                              ],
+                            ),
+                          ),
+              ),
+            ],
+          ),
+        ),
       ),
-      body: isLoading 
-          ? const Center(child: CircularProgressIndicator(color: Colors.orange))
-          : progressData.isEmpty
-              ? const Center(
-                  child: Text(
-                    "Fais ton premier bilan de fin de journée\npour voir ton évolution !",
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
-                  ),
-                )
-              : Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        "Effort Quotidien (XP)", 
-                        style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.deepOrange)
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        "Visualise les points gagnés chaque jour. Bats ton record !", 
-                        style: TextStyle(fontSize: 14, color: Colors.grey.shade600)
-                      ),
-                      const SizedBox(height: 40),
-                      
-                      // 👇 APPEL DE LA NOUVELLE FONCTION
-                      Expanded(
-                        child: _buildStravaChart(progressData),
-                      ),
-                      
-                      const SizedBox(height: 40),
-                    ],
-                  ),
+    );
+  }
+
+  Widget _buildHeader(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Row(
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF6B35).withOpacity(0.3),
+                  blurRadius: 15,
+                  spreadRadius: 2,
                 ),
+              ],
+            ),
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          const SizedBox(width: 16),
+          const Text(
+            "Ma Roadmap 🦊",
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              shadows: [
+                Shadow(
+                  color: Color(0xFFFF6B35),
+                  blurRadius: 10,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
