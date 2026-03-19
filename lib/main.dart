@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart'; // 👈 IMPORT IMPORTANT
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:firebase_core/firebase_core.dart'; // 🔥 NOUVEAU : Le moteur Firebase
+import 'firebase_options.dart'; // 🔥 NOUVEAU : Tes clés secrètes
 
 import 'sport_screen.dart';
 import 'profile_screen.dart';
@@ -12,6 +14,11 @@ import 'progress_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🚀 ALLUMAGE DE FIREBASE : On connecte l'application au Cloud Google
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
 
   // 🇫🇷 CHARGEMENT DU DICTIONNAIRE FRANÇAIS POUR LES DATES
   await initializeDateFormatting('fr_FR', null);

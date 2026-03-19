@@ -12,7 +12,7 @@ namespace VulpiFit.API.Services
         public GroqService(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
-            _apiKey = config["GroqApiKey"] ?? "";
+            _apiKey = _apiKey = config["GroqApiKey"] ?? ""; 
         }
 
         // 👇 NOUVEAU : On ajoute l'historique en paramètre
