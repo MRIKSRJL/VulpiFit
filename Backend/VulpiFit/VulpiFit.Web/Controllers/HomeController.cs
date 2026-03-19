@@ -2,23 +2,23 @@ using Microsoft.AspNetCore.Mvc;
 using System.Diagnostics;
 using System.Text.Json;
 using VulpiFit.Models;
-using VulpiFit.Web.Models; // Assure-toi que ce namespace est le bon
+using VulpiFit.Web.Models; 
 
 namespace VulpiFit.Controllers
 {
     public class HomeController : Controller
     {
-        // On remet l'adresse technique de ton API Azure
+        // On remet l'adresse technique de notre API Azure
         private readonly string _apiUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Users";
 
-        // L'action Index() est celle qui se lance quand on arrive sur la page d'accueil
+        // L'action Index() se lance quand on arrive sur la page d'accueil
         public async Task<IActionResult> Index()
         {
             List<UserViewModel> users = new List<UserViewModel>();
 
             using (var client = new HttpClient())
             {
-                // Le site web fait une requête GET à ton API
+                // Le site web fait une requête GET à notre API
                 var response = await client.GetAsync(_apiUrl);
 
                 if (response.IsSuccessStatusCode)
@@ -31,7 +31,7 @@ namespace VulpiFit.Controllers
                 }
                 else
                 {
-                    // En cas d'erreur (ex: 401 ou 404), on prévient la Vue
+                    // En cas d'erreur (ex: 401 ou 404), on prévient la Vue (View)
                     ViewBag.ErrorMessage = $"Erreur lors de la récupération des données : {response.StatusCode}";
                 }
             }
