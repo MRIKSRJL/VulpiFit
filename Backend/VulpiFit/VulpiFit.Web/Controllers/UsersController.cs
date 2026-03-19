@@ -6,7 +6,7 @@ namespace VulpiFit.Web.Controllers
 {
     public class UsersController : Controller
     {
-        // On pointe vers ton vrai serveur Azure
+        // On pointe vers notre serveur Azure
         private readonly string _apiUsersUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Users";
         private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 

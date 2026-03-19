@@ -15,7 +15,7 @@ namespace VulpiFit.Web.Data
         public DbSet<User> Users { get; set; }
         public DbSet<Mission> Missions { get; set; }
 
-        // ⚠️ Si 'MissionLog' s'affiche en rouge, vérifie l'étape 3 ci-dessous
+        
         public DbSet<MissionLog> MissionLogs { get; set; }
     }
 }

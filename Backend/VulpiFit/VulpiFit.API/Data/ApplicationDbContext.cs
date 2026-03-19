@@ -1,5 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using VulpiFit.API.Models; // 👈 Très important, sinon il ne trouve pas "User"
+using VulpiFit.API.Models; 
 
 namespace VulpiFit.API.Data
 {

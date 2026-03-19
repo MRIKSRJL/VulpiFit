@@ -2,18 +2,18 @@
 using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Text;
 using System.Text.Json;
-using VulpiFit.Web.Models; // Vérifie bien que c'est le namespace de ton projet
+using VulpiFit.Web.Models; 
 
 namespace VulpiFit.Web.Controllers
 {
     public class MissionsController : Controller
     {
-        // 🌐 Les adresses de ton API Azure
+        // Les adresses de notre API Azure
         private readonly string _apiMissionsUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Missions";
         private readonly string _apiUsersUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api/Users";
         private readonly JsonSerializerOptions _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
 
-        // 1. AFFICHER LA LISTE (GET)
+        // 1. ON AFFICHE LA LISTE (GET)
         public async Task<IActionResult> Index()
         {
             List<Mission> missions = new List<Mission>();
@@ -29,7 +29,7 @@ namespace VulpiFit.Web.Controllers
             return View(missions);
         }
 
-        // 2. AFFICHER LE FORMULAIRE (GET)
+        // 2. ON AFFICHE LE FORMULAIRE (GET)
         public async Task<IActionResult> Create()
         {
             // On récupère la liste des utilisateurs via l'API pour le menu déroulant
@@ -48,7 +48,7 @@ namespace VulpiFit.Web.Controllers
             return View();
         }
 
-        // 3. ENREGISTRER LA MISSION (POST)
+        // 3.  ON ENREGISTRE LA MISSION (POST)
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(Mission mission)
@@ -60,7 +60,7 @@ namespace VulpiFit.Web.Controllers
                 // On transforme l'objet mission en texte JSON
                 var jsonContent = new StringContent(JsonSerializer.Serialize(mission), Encoding.UTF8, "application/json");
 
-                // On l'envoie à l'API !
+                // On l'envoie à l'API 
                 var response = await client.PostAsync(_apiMissionsUrl, jsonContent);
 
                 if (response.IsSuccessStatusCode)

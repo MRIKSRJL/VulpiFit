@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace VulpiFit.API.Models // Remplace par ton vrai namespace si différent
+namespace VulpiFit.API.Models 
 {
     public class UserProgressLog
     {

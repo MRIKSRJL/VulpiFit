@@ -26,7 +26,7 @@ namespace VulpiFit.API.Controllers
                 return BadRequest("Ce pseudo est déjà pris ! 🦊❌");
             }
 
-            // 👇 LA MAGIE EST ICI : On hache le mot de passe avant de sauvegarder
+            
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(user.Password);
             user.Password = passwordHash;
 
@@ -46,7 +46,7 @@ namespace VulpiFit.API.Controllers
         [HttpPost("login")]
         public async Task<ActionResult<User>> Login(User loginRequest)
         {
-            // On cherche l'utilisateur par son Pseudo (pas encore le mot de passe)
+            // On cherche l'utilisateur par son Pseudo 
             var user = await _context.Users
                 .FirstOrDefaultAsync(u => u.Pseudo == loginRequest.Pseudo);
 
@@ -56,7 +56,7 @@ namespace VulpiFit.API.Controllers
                 return Unauthorized("Pseudo ou mot de passe incorrect ! ⛔");
             }
 
-            // 👇 VÉRIFICATION DU HASH : On compare le mot de passe donné avec le hash en BDD
+           
             // (loginRequest.Password = "1234", user.Password = "$2a$11$...")
             if (!BCrypt.Net.BCrypt.Verify(loginRequest.Password, user.Password))
             {

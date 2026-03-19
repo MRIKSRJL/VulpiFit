@@ -35,7 +35,7 @@ namespace VulpiFit.API.Controllers
             var pseudoExiste = await _context.Users.AnyAsync(u => u.Pseudo.ToLower() == user.Pseudo.ToLower());
             if (pseudoExiste) return BadRequest("Ce pseudo est déjà pris !");
 
-            // 🛡️ NOUVEAUTÉ SÉCURITÉ : On crypte le mot de passe avant de le sauvegarder !
+            // On crypte le mot de passe avant de le sauvegarder 
             if (!string.IsNullOrEmpty(user.Password))
             {
                 user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
@@ -61,7 +61,7 @@ namespace VulpiFit.API.Controllers
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.Password);
             if (!isPasswordValid) return Unauthorized("Pseudo ou mot de passe incorrect.");
 
-            // 🎟️ FABRICATION DU BRACELET VIP (JWT)
+            // FABRICATION DU BRACELET VIP (JWT)
             var jwtKey = "LaCleSecreteDeVulpiFitSuperLongueEtSecurisee2026!"; // La même que dans Program.cs
             var keyBytes = Encoding.UTF8.GetBytes(jwtKey);
 
@@ -111,7 +111,7 @@ namespace VulpiFit.API.Controllers
             user.LastFeedback = request.FeedbackText;
             user.LastDifficulty = request.DifficultyLevel;
 
-            // 2. 📸 ON PREND LA PHOTO POUR LA ROADMAP !
+            // 2. PHOTO POUR LA ROADMAP !
             var dailyLog = new UserProgressLog
             {
                 UserId = user.Id,
@@ -137,7 +137,7 @@ namespace VulpiFit.API.Controllers
             return Ok(logs);
         }
 
-        // 👇 NOUVELLE MISSION : Le droit à l'oubli
+        
         // DELETE: api/Users/5
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
