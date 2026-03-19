@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace VulpiFit.API.Controllers
 {
-    [Authorize] // 👈 Le vigile est toujours là !
+    [Authorize] 
     [Route("api/[controller]")]
     [ApiController]
     public class MissionsController : ControllerBase
@@ -21,7 +21,7 @@ namespace VulpiFit.API.Controllers
             _groqService = groqService;
         }
 
-        // GET: api/Missions/5
+        // GET: api/Missions
         [HttpGet("{userId}")]
         public async Task<ActionResult<IEnumerable<Mission>>> GetMissionsForUser(int userId)
         {
@@ -30,7 +30,7 @@ namespace VulpiFit.API.Controllers
 
             var today = DateTime.Today;
 
-            // 1. VÉRIFICATION : Est-ce qu'on a déjà généré les missions aujourd'hui ?
+            // 1. VÉRIFICATION : généreration des missions aujourd'hui ?
             var dailyMissions = await _context.Missions
                 .Where(m => m.UserId == userId && m.AssignedDate.Date == today)
                 .ToListAsync();
@@ -40,17 +40,17 @@ namespace VulpiFit.API.Controllers
                 return Ok(dailyMissions);
             }
 
-            // 2. CRÉATION PAR L'IA AVEC HISTORIQUE 🧠
+            // 2. CRÉATION PAR L'IA AVEC HISTORIQUE 
             Console.WriteLine($"🚀 Génération de missions IA pour le joueur {user.Pseudo}...");
 
-            // 👇 NOUVEAU : On récupère les 15 dernières performances (Poids/Reps) du joueur
+            // On récupère les 15 dernières performances (Poids/Reps) du joueur
             var recentLogs = await _context.ExerciseLogs
                 .Where(e => e.UserId == userId)
                 .OrderByDescending(e => e.Date)
                 .Take(15)
                 .ToListAsync();
 
-            // 👇 NOUVEAU : On passe l'historique à notre GroqService
+            //  On passe l'historique à notre GroqService
             var newMissions = await _groqService.GenerateDailyMissionsAsync(user, recentLogs);
 
             // Plan de secours : Si Groq a un bug réseau
@@ -78,7 +78,7 @@ namespace VulpiFit.API.Controllers
             return Ok(newMissions);
         }
 
-        // POST: api/Missions/Complete/5?userId=1
+        // POST: api/Missions/Complete
         [HttpPost("Complete/{id}")]
         public async Task<IActionResult> CompleteMission(int id, [FromQuery] int userId)
         {
@@ -127,7 +127,7 @@ namespace VulpiFit.API.Controllers
             return Ok(mission);
         }
 
-        // POST: api/Missions/Undo/5?userId=1
+        // POST: api/Missions/Undo
         [HttpPost("Undo/{id}")]
         public async Task<IActionResult> UndoMission(int id, [FromQuery] int userId)
         {
@@ -148,9 +148,9 @@ namespace VulpiFit.API.Controllers
             }
             return Ok();
         }
-        // 🚨 ROUTE SPÉCIALE POUR LE SITE WEB ADMIN (MVC)
+        // ROUTE  POUR LE SITE WEB ADMIN (MVC)
         [HttpGet]
-        [AllowAnonymous] // Ce badge magique dit au videur de laisser passer la requête sans Token VIP
+        [AllowAnonymous] // dit au videur de laisser passer la requête sans Token VIP
         public async Task<ActionResult<IEnumerable<Mission>>> GetAllMissionsForAdmin()
         {
             // L'API va chercher toutes les missions dans la base de données et les donne au site Web
