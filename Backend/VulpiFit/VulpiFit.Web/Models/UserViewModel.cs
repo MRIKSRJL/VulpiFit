@@ -1,4 +1,4 @@
-﻿namespace VulpiFit.Models // Attention : vérifie que ce namespace correspond bien à ton projet
+﻿namespace VulpiFit.Models 
 {
     public class UserViewModel
     {
