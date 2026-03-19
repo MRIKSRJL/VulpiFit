@@ -1,0 +1,41 @@
+@model VulpiFit.Web.Models.Mission
+
+@{
+    ViewData["Title"] = "Nouvelle Mission";
+}
+
+<h2 class="mt-4">Créer une Nouvelle Mission 🦊</h2>
+<hr />
+
+<div class="row">
+    <div class="col-md-6">
+        <form asp-action="Create">
+            <div class="form-group mb-3">
+                <label asp-for="Title" class="control-label fw-bold">Titre de la mission</label>
+                <input asp-for="Title" class="form-control" placeholder="Ex: Courir 5km" required />
+            </div>
+            
+            <div class="form-group mb-3">
+                <label asp-for="Description" class="control-label fw-bold">Description</label>
+                <textarea asp-for="Description" class="form-control" rows="3" placeholder="Détails de l'objectif..." required></textarea>
+            </div>
+
+            <div class="form-group mb-3">
+                <label asp-for="Points" class="control-label fw-bold">Récompense (Points)</label>
+                <input asp-for="Points" type="number" class="form-control" value="10" required />
+            </div>
+
+            <div class="form-group mb-4">
+                <label class="control-label fw-bold">Attribuer au joueur</label>
+                <select name="UserId" class="form-select" asp-items="ViewBag.Users" required>
+                    <option value="">-- Sélectionner un renard --</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <input type="submit" value="Envoyer la mission" class="btn btn-primary" />
+                <a asp-action="Index" class="btn btn-outline-secondary ms-2">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>

@@ -156,5 +156,44 @@ namespace VulpiFit.API.Controllers
             // L'API va chercher toutes les missions dans la base de données et les donne au site Web
             return await _context.Missions.ToListAsync();
         }
+
+        // 🚨 ROUTE SPÉCIALE POUR LE SITE WEB ADMIN : Créer une mission manuellement
+        [HttpPost]
+        [AllowAnonymous] // On laisse passer le site Web
+        public async Task<IActionResult> CreateMissionForAdmin(Mission mission)
+        {
+            // On s'assure que la date d'assignation est bien mise à aujourd'hui
+            if (mission.AssignedDate == default)
+            {
+                mission.AssignedDate = DateTime.Today;
+            }
+
+            // On sauvegarde dans la base de données
+            _context.Missions.Add(mission);
+            await _context.SaveChangesAsync();
+
+            return Ok(mission);
+        }
+
+        // 🚨 ROUTE SPÉCIALE POUR LE SITE WEB ADMIN : Supprimer une mission
+        [HttpDelete("{id}")]
+        [AllowAnonymous] // On laisse passer le site Web
+        public async Task<IActionResult> DeleteMissionForAdmin(int id)
+        {
+            // 1. On cherche la mission dans la base de données
+            var mission = await _context.Missions.FindAsync(id);
+
+            // 2. Si elle n'existe pas, on renvoie une erreur 404
+            if (mission == null)
+            {
+                return NotFound();
+            }
+
+            // 3. On la supprime et on sauvegarde
+            _context.Missions.Remove(mission);
+            await _context.SaveChangesAsync();
+
+            return Ok();
+        }
     }
 }
