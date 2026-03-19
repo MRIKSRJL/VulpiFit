@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace VulpiFit.API.Controllers
 {
-    [Authorize] // 🛡️ On garde notre vigile de sécurité !
+    [Authorize] 
     [Route("api/[controller]")]
     [ApiController]
     public class ExercisesController : ControllerBase
@@ -18,8 +18,8 @@ namespace VulpiFit.API.Controllers
             _context = context;
         }
 
-        // POST: api/Exercises/log
-        // Permet au téléphone d'enregistrer une performance
+        
+        //enregistrer une performance
         [HttpPost("log")]
         public async Task<IActionResult> LogExercise([FromBody] ExerciseLogRequest request)
         {
@@ -38,8 +38,8 @@ namespace VulpiFit.API.Controllers
             return Ok(log);
         }
 
-        // GET: api/Exercises/history/5
-        // Permet à l'IA ou au téléphone de récupérer les performances passées
+        
+        // récupérer les performances passées
         [HttpGet("history/{userId}")]
         public async Task<IActionResult> GetUserHistory(int userId)
         {
@@ -53,7 +53,7 @@ namespace VulpiFit.API.Controllers
         }
     }
 
-    // Le "moule" pour recevoir les données du téléphone
+    // recevoir les données 
     public class ExerciseLogRequest
     {
         public int UserId { get; set; }
