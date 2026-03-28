@@ -212,7 +212,7 @@ namespace VulpiFit.API.Controllers
             return await _context.Missions.ToListAsync();
         }
 
-        // 🚨 ROUTE SPÉCIALE POUR LE SITE WEB ADMIN : Créer une mission manuellement
+        //  Créer une mission manuellement
         [HttpPost]
         [AllowAnonymous] // On laisse passer le site Web
         public async Task<IActionResult> CreateMissionForAdmin(Mission mission)
@@ -230,7 +230,7 @@ namespace VulpiFit.API.Controllers
             return Ok(mission);
         }
 
-        // 🚨 ROUTE SPÉCIALE POUR LE SITE WEB ADMIN : Supprimer une mission
+        //  Supprimer une mission
         [HttpDelete("{id}")]
         [AllowAnonymous] // On laisse passer le site Web
         public async Task<IActionResult> DeleteMissionForAdmin(int id)

@@ -77,10 +77,10 @@ using (var scope = app.Services.CreateScope())
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
 
-        // 🛑 LIGNE SUPPRIMÉE : context.Database.EnsureDeleted();
+        //  context.Database.EnsureDeleted();
 
         // Cette commande crée la base uniquement si elle n'existe pas encore.
-        // Si elle existe déjà avec tes comptes et tes missions, elle la conserve intacte !
+        // Si elle existe déjà avec tes comptes et tes missions, elle la conserve intacte 
         context.Database.EnsureCreated();
     }
     catch (Exception ex)
