@@ -1,8 +1,10 @@
-﻿using VulpiFit.API.Data;
+using VulpiFit.API.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Configuration;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,8 +28,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 // CONFIGURATION DE LA BDD
 // CONFIGURATION DE LA BDD
+// Par défaut, on récupère depuis la config ASP.NET (incluant éventuellement user-secrets).
+// Mais en mode Development, les user-secrets peuvent écraser appsettings.Development.json.
+// Pour faciliter le run local (tests Postman), on force la source appsettings en l'absence de variable d'environnement.
+var envOverrideConnectionString = Environment.GetEnvironmentVariable("ConnectionStrings__DefaultConnection");
+var defaultConnectionString = string.IsNullOrWhiteSpace(envOverrideConnectionString)
+    ? builder.Configuration.GetConnectionString("DefaultConnection")
+    : envOverrideConnectionString;
+
+if (builder.Environment.IsDevelopment() && string.IsNullOrWhiteSpace(envOverrideConnectionString))
+{
+    var jsonOnlyConfig = new ConfigurationBuilder()
+        .SetBasePath(builder.Environment.ContentRootPath)
+        .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
+        .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: false)
+        .Build();
+
+    var devFromJson = jsonOnlyConfig.GetConnectionString("DefaultConnection");
+    if (!string.IsNullOrWhiteSpace(devFromJson))
+    {
+        defaultConnectionString = devFromJson;
+    }
+}
+try
+{
+    var csb = new SqlConnectionStringBuilder(defaultConnectionString);
+    Console.WriteLine($"[DB] Environment={builder.Environment.EnvironmentName} | DataSource={csb.DataSource}");
+}
+catch
+{
+    Console.WriteLine($"[DB] Environment={builder.Environment.EnvironmentName} | DefaultConnectionString loaded (could not parse DataSource).");
+}
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+    options.UseSqlServer(defaultConnectionString));
 builder.Services.AddHttpClient<VulpiFit.API.Services.GroqService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();

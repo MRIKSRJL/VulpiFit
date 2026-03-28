@@ -1,8 +1,9 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VulpiFit.API.Data;
 using VulpiFit.API.Models;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace VulpiFit.API.Controllers
 {
@@ -12,6 +13,13 @@ namespace VulpiFit.API.Controllers
     public class ExercisesController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
+
+        private bool TryGetAuthenticatedUserId(out int authenticatedUserId)
+        {
+            authenticatedUserId = 0;
+            var claimValue = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return claimValue != null && int.TryParse(claimValue, out authenticatedUserId);
+        }
 
         public ExercisesController(ApplicationDbContext context)
         {
@@ -23,6 +31,12 @@ namespace VulpiFit.API.Controllers
         [HttpPost("log")]
         public async Task<IActionResult> LogExercise([FromBody] ExerciseLogRequest request)
         {
+            if (!TryGetAuthenticatedUserId(out var authenticatedUserId))
+                return Unauthorized();
+
+            if (request.UserId != authenticatedUserId)
+                return Forbid();
+
             var log = new ExerciseLog
             {
                 UserId = request.UserId,
@@ -43,6 +57,12 @@ namespace VulpiFit.API.Controllers
         [HttpGet("history/{userId}")]
         public async Task<IActionResult> GetUserHistory(int userId)
         {
+            if (!TryGetAuthenticatedUserId(out var authenticatedUserId))
+                return Unauthorized();
+
+            if (authenticatedUserId != userId)
+                return Forbid();
+
             var history = await _context.ExerciseLogs
                 .Where(e => e.UserId == userId)
                 .OrderByDescending(e => e.Date)

@@ -11,3 +11,4 @@ pubspec.lock
 android/.gradle/
 ios/Pods/
 # End
+.aider*

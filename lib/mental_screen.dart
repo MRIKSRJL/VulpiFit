@@ -1,6 +1,10 @@
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
-import '../services/mission_service.dart';
-import '../models/mission.dart';
+
+import 'mission_success_feedback.dart';
+import 'models/mission.dart';
+import 'services/mission_service.dart';
+import 'widgets/satisfying_mission_button.dart';
 
 class MentalScreen extends StatefulWidget {
   const MentalScreen({super.key});
@@ -11,6 +15,7 @@ class MentalScreen extends StatefulWidget {
 
 class _MentalScreenState extends State<MentalScreen> {
   late Future<List<Mission>> futureMissions;
+  final AudioPlayer _player = AudioPlayer();
 
   @override
   void initState() {
@@ -18,16 +23,20 @@ class _MentalScreenState extends State<MentalScreen> {
     _chargerMissions();
   }
 
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
   void _chargerMissions() {
     setState(() {
-      futureMissions = MissionService.getMissions().then((list) => 
-        list.cast<Mission>()
-      );
+      futureMissions = MissionService.getMissions();
     });
   }
 
-  void _toggleMission(Mission mission) async {
-    bool etaitDejaFaite = mission.isCompleted;
+  Future<void> _toggleMission(Mission mission) async {
+    final etaitDejaFaite = mission.isCompleted;
 
     setState(() {
       mission.isCompleted = !mission.isCompleted;
@@ -35,104 +44,120 @@ class _MentalScreenState extends State<MentalScreen> {
 
     try {
       if (!etaitDejaFaite) {
-        // ✅ On VALIDE
-        await MissionService.completeMission(mission.id);
-        
-        // 🛡️ LE BOUCLIER
+        final ok = await MissionService.completeMission(mission.id);
         if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text("Zen... ${mission.title} validée ! (+${mission.points} pts) 🧘"), 
-            backgroundColor: Colors.purple, // Thème Violet
-            duration: const Duration(seconds: 1)
-          ),
-        );
+        if (ok) {
+          MissionSuccessFeedback.schedulePlay(_player);
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Zen… ${mission.title} validée ! (+${mission.points} pts) 🧘'),
+              backgroundColor: Colors.deepPurple.shade700,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        } else {
+          setState(() => mission.isCompleted = etaitDejaFaite);
+        }
       } else {
-        // ↩️ On ANNULE
-        await MissionService.undoMission(mission.id);
-        
-        // 🛡️ LE BOUCLIER
+        final ok = await MissionService.undoMission(mission.id);
         if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Annulé. Respire un bon coup..."), duration: Duration(seconds: 1)),
-        );
+        if (ok) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Annulé. Respire un bon coup…'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        } else {
+          setState(() => mission.isCompleted = etaitDejaFaite);
+        }
       }
     } catch (e) {
-      // 🛡️ LE BOUCLIER ICI AUSSI
       if (!mounted) return;
-      
-      setState(() {
-        mission.isCompleted = etaitDejaFaite;
-      });
+      setState(() => mission.isCompleted = etaitDejaFaite);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Erreur de connexion : $e")),
+        SnackBar(content: Text('Erreur de connexion : $e')),
       );
     }
   }
 
+  static const _bg = Color(0xFF060814);
+  static const _appBar = Color(0xFF0F1628);
+  static const _cyan = Color(0xFF00FFD1);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: _bg,
       appBar: AppBar(
         title: const Text('Missions Mental 🧠'),
-        backgroundColor: Colors.purple, // Thème Violet
+        backgroundColor: _appBar,
+        foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: FutureBuilder<List<Mission>>(
         future: futureMissions,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator(color: Colors.purple));
-          } else if (snapshot.hasError) {
-            return Center(child: Text("Erreur: ${snapshot.error}"));
-          } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-            return const Center(child: Text("Aucune mission trouvée !"));
+            return const Center(child: CircularProgressIndicator(color: _cyan));
           }
-
-          final missions = snapshot.data!;
-          
-          // 👇 LE FILTRE MAGIQUE : On ne garde que "Mental"
-          final mentalMissions = missions.where((m) => m.type.contains("Mental")).toList();
-
-          if (mentalMissions.isEmpty) {
-            return const Center(
-              child: Text("Pas de missions Mental pour l'instant.\nAjoutes-en via Swagger !", textAlign: TextAlign.center),
+          if (snapshot.hasError) {
+            return Center(
+              child: Text(
+                'Erreur: ${snapshot.error}',
+                style: const TextStyle(color: Color(0xFFFF5252)),
+              ),
+            );
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(
+              child: Text(
+                'Aucune mission trouvée !',
+                style: TextStyle(color: Colors.white.withValues(alpha: 0.65)),
+              ),
             );
           }
 
-          return ListView.builder(
-            itemCount: mentalMissions.length,
-            itemBuilder: (context, index) {
-              final mission = mentalMissions[index];
+          final missions = snapshot.data!;
+          final mentalMissions =
+              missions.where((m) => m.matchesCategory('mental')).toList();
 
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                color: mission.isCompleted ? Colors.purple.shade100 : Colors.white,
-                child: ListTile(
-                  leading: Icon(
-                    mission.isCompleted ? Icons.check_circle : Icons.self_improvement, // Icône Zen
-                    color: mission.isCompleted ? Colors.purple : Colors.purple.shade300,
-                    size: 30,
-                  ),
-                  title: Text(
-                    mission.title,
-                    style: TextStyle(
-                      decoration: mission.isCompleted ? TextDecoration.lineThrough : null,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  subtitle: Text("${mission.points} points"),
-                  trailing: Icon(
-                    mission.isCompleted ? Icons.check_box : Icons.check_box_outline_blank,
-                    color: mission.isCompleted ? Colors.purple : Colors.grey,
-                  ),
-                  onTap: () {
-                    _toggleMission(mission);
-                  },
+          if (mentalMissions.isEmpty) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Text(
+                  "Pas de missions Mental pour l'instant.\n"
+                  'Vérifie que l’API renvoie le champ Type (ex. Mental).',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.65), height: 1.4),
                 ),
-              );
+              ),
+            );
+          }
+
+          return RefreshIndicator(
+            color: _cyan,
+            onRefresh: () async {
+              _chargerMissions();
+              await futureMissions;
             },
+            child: ListView.builder(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(top: 8, bottom: 32),
+              itemCount: mentalMissions.length,
+              itemBuilder: (context, index) {
+                final mission = mentalMissions[index];
+                return SatisfyingMissionButton(
+                  title: mission.title,
+                  points: mission.points,
+                  isCompleted: mission.isCompleted,
+                  icon: Icons.self_improvement,
+                  onTap: () => _toggleMission(mission),
+                );
+              },
+            ),
           );
         },
       ),

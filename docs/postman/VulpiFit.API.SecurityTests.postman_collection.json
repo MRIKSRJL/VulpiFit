@@ -1,0 +1,261 @@
+{
+  "info": {
+    "_postman_id": "0f3d53f0-1b7f-4a73-88d0-8e5fa6d4b8b1",
+    "name": "VulpiFit.API - JWT userId security tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Collection pour vérifier que les endpoints Missions/Exercises refusent (403) si le userId fourni ne correspond pas au ClaimTypes.NameIdentifier du JWT."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api", "type": "string" },
+    { "key": "pseudoA", "value": "userA", "type": "string" },
+    { "key": "passwordA", "value": "passwordA", "type": "string" },
+    { "key": "pseudoB", "value": "userB", "type": "string" },
+    { "key": "passwordB", "value": "passwordB", "type": "string" },
+    { "key": "tokenA", "value": "", "type": "string" },
+    { "key": "tokenB", "value": "", "type": "string" },
+    { "key": "userIdA", "value": "", "type": "string" },
+    { "key": "userIdB", "value": "", "type": "string" },
+    { "key": "missionIdA", "value": "", "type": "string" },
+    { "key": "missionIdB", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login A (set tokenA + userIdA)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "const token = body.Token || body.token;",
+                  "const user = body.User || body.user;",
+                  "pm.environment.set('tokenA', token || '');",
+                  "pm.environment.set('userIdA', (user && (user.Id ?? user.id)) ? String(user.Id ?? user.id) : '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/Users/login", "host": ["{{baseUrl}}"], "path": ["Users", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pseudo\": \"{{pseudoA}}\",\n  \"password\": \"{{passwordA}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Login B (set tokenB + userIdB)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "const token = body.Token || body.token;",
+                  "const user = body.User || body.user;",
+                  "pm.environment.set('tokenB', token || '');",
+                  "pm.environment.set('userIdB', (user && (user.Id ?? user.id)) ? String(user.Id ?? user.id) : '');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{baseUrl}}/Users/login", "host": ["{{baseUrl}}"], "path": ["Users", "login"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pseudo\": \"{{pseudoB}}\",\n  \"password\": \"{{passwordB}}\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Missions (JWT userId matching)",
+      "item": [
+        {
+          "name": "Get missions for A (tokenA, userIdA) => 200",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const missions = pm.response.json();",
+                  "if (Array.isArray(missions) && missions.length > 0) {",
+                  "  const firstId = missions[0].id ?? missions[0].Id;",
+                  "  if (firstId) pm.environment.set('missionIdA', String(firstId));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Missions/{{userIdA}}", "host": ["{{baseUrl}}"], "path": ["Missions", "{{userIdA}}"] }
+          }
+        },
+        {
+          "name": "Get missions for B with tokenA (mismatch) => 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('Status 403', function () { pm.response.to.have.status(403); });"] }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Missions/{{userIdB}}", "host": ["{{baseUrl}}"], "path": ["Missions", "{{userIdB}}"] }
+          }
+        },
+        {
+          "name": "Complete missionIdA with tokenA + userIdA => 200/204",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200 or 204', function () { pm.expect([200,204]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Missions/Complete/{{missionIdA}}?userId={{userIdA}}", "host": ["{{baseUrl}}"], "path": ["Missions", "Complete", "{{missionIdA}}"], "query": [{ "key": "userId", "value": "{{userIdA}}" }] }
+          }
+        },
+        {
+          "name": "Complete missionIdA with tokenA + userIdB (mismatch) => 403",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 403', function () { pm.response.to.have.status(403); });"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Missions/Complete/{{missionIdA}}?userId={{userIdB}}", "host": ["{{baseUrl}}"], "path": ["Missions", "Complete", "{{missionIdA}}"], "query": [{ "key": "userId", "value": "{{userIdB}}" }] }
+          }
+        },
+        {
+          "name": "Undo missionIdA with tokenA + userIdA => 200/204",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 200 or 204', function () { pm.expect([200,204]).to.include(pm.response.code); });"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Missions/Undo/{{missionIdA}}?userId={{userIdA}}", "host": ["{{baseUrl}}"], "path": ["Missions", "Undo", "{{missionIdA}}"], "query": [{ "key": "userId", "value": "{{userIdA}}" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Exercises (JWT userId matching)",
+      "item": [
+        {
+          "name": "Log exercise for A (tokenA, body.UserId=A) => 200",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Exercises/log", "host": ["{{baseUrl}}"], "path": ["Exercises", "log"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userIdA}},\n  \"exerciseName\": \"Test Postman - Développé couché\",\n  \"weight\": 42.5,\n  \"reps\": 10\n}"
+            }
+          }
+        },
+        {
+          "name": "Log exercise mismatch (tokenA, body.UserId=B) => 403",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 403', function () { pm.response.to.have.status(403); });"] } }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Exercises/log", "host": ["{{baseUrl}}"], "path": ["Exercises", "log"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": {{userIdB}},\n  \"exerciseName\": \"Test Postman - mismatch\",\n  \"weight\": 1,\n  \"reps\": 1\n}"
+            }
+          }
+        },
+        {
+          "name": "Get history A (tokenA, userIdA) => 200",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });"] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Exercises/history/{{userIdA}}", "host": ["{{baseUrl}}"], "path": ["Exercises", "history", "{{userIdA}}"] }
+          }
+        },
+        {
+          "name": "Get history mismatch (tokenA, userIdB) => 403",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 403', function () { pm.response.to.have.status(403); });"] } }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{tokenA}}" }
+            ],
+            "url": { "raw": "{{baseUrl}}/Exercises/history/{{userIdB}}", "host": ["{{baseUrl}}"], "path": ["Exercises", "history", "{{userIdB}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin (AllowAnonymous) - optional",
+      "item": [
+        {
+          "name": "Admin list missions (no token) => 200",
+          "event": [
+            { "listen": "test", "script": { "type": "text/javascript", "exec": ["pm.test('Status 200', function () { pm.response.to.have.status(200); });"] } }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/Missions", "host": ["{{baseUrl}}"], "path": ["Missions"] }
+          }
+        }
+      ]
+    }
+  ]
+}
+

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:http/http.dart' as http;
-import 'services/mission_service.dart';
 import 'auth_screen.dart';
+import 'services/mission_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -12,13 +11,17 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String pseudo = "Chargement...";
+  static const _bg = Color(0xFF060814);
+  static const _card = Color(0xFF12182A);
+  static const _cyan = Color(0xFF00FFD1);
+  static const _magenta = Color(0xFFFF2D95);
+  static const _appBarFill = Color(0xFF0F1628);
+
+  String pseudo = 'Chargement...';
   int score = 0;
   int streak = 0;
   int totalMissions = 0;
-  int? userId; // 👈 On ajoute l'ID de l'utilisateur pour la suppression
-
-
+  int? userId;
 
   @override
   void initState() {
@@ -26,77 +29,75 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _loadProfileData();
   }
 
-  void _loadProfileData() async {
-    // 1. On charge les stats
+  Future<void> _loadProfileData() async {
     var stats = await MissionService.getUserStats();
-    
-    // 2. On récupère l'ID du joueur stocké sur le téléphone (pour pouvoir le supprimer)
     final prefs = await SharedPreferences.getInstance();
-    
+
+    if (!mounted) return;
     setState(() {
-      pseudo = stats['pseudo'] ?? "Inconnu";
+      pseudo = stats['pseudo'] ?? 'Inconnu';
       score = stats['score'] ?? 0;
       streak = stats['streak'] ?? 0;
       totalMissions = stats['total'] ?? 0;
-      userId = prefs.getInt('userId'); // Assure-toi que tu sauves bien 'userId' au login !
+      userId = prefs.getInt('userId');
     });
   }
 
-  // 🚪 FONCTION DE DÉCONNEXION
-  void _logout() async {
+  Future<void> _logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear(); // On efface le token et les données locales
+    await prefs.clear();
 
     if (mounted) {
-      // 🔄 NOUVELLE FAÇON DE NAVIGUER (Directe et infaillible)
       Navigator.pushAndRemoveUntil(
         context,
-        // Remplace "LoginScreen()" par le vrai nom de ta classe (ex: LoginPage(), AuthScreen()...)
-        MaterialPageRoute(builder: (context) => const AuthScreen()), 
+        MaterialPageRoute(builder: (context) => const AuthScreen()),
         (Route<dynamic> route) => false,
       );
     }
   }
 
-
-
-
-  // 🚨 BOÎTE DE DIALOGUE DE SÉCURITÉ
   void _showDeleteConfirmation(BuildContext context) {
     showDialog(
       context: context,
       builder: (BuildContext ctx) {
         return AlertDialog(
-          title: const Text("Supprimer mon compte", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-          content: const Text("Attention, cette action est irréversible. Toutes tes missions, tes scores et ton historique seront effacés à jamais. Es-tu sûr ?"),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          backgroundColor: _card,
+          title: const Text(
+            'Supprimer mon compte',
+            style: TextStyle(color: Color(0xFFFF5252), fontWeight: FontWeight.bold),
+          ),
+          content: Text(
+            'Attention, cette action est irréversible. Toutes tes missions, tes scores et ton historique seront effacés à jamais. Es-tu sûr ?',
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+            side: BorderSide(color: _cyan.withValues(alpha: 0.35)),
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(),
-              child: const Text("Annuler", style: TextStyle(color: Colors.grey)),
+              child: Text('Annuler', style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFFF5252)),
               onPressed: () async {
-                Navigator.of(ctx).pop(); // Ferme la boîte de dialogue
-                
-                // 👇 ON UTILISE MAINTENANT LE MISSION SERVICE !
+                Navigator.of(ctx).pop();
                 bool success = await MissionService.deleteAccount();
-                
                 if (success) {
-                  _logout(); // Si ça a marché, on déconnecte et on renvoie au login
+                  _logout();
                 } else {
                   if (mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                        content: Text("Erreur lors de la suppression. 🦊🔧"),
-                        backgroundColor: Colors.red,
+                        content: Text('Erreur lors de la suppression.'),
+                        backgroundColor: Color(0xFFFF5252),
                       ),
                     );
                   }
                 }
               },
-              child: const Text("Supprimer définitivement", style: TextStyle(color: Colors.white)),
+              child: const Text('Supprimer définitivement', style: TextStyle(color: Colors.white)),
             ),
           ],
         );
@@ -104,137 +105,184 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  // 🧠 LA LOGIQUE DES NIVEAUX !
   Map<String, dynamic> _getLevelInfo(int currentScore) {
-    if (currentScore < 100) return {"level": 1, "title": "Jeune Renardeau 🐾", "min": 0, "max": 100};
-    if (currentScore < 300) return {"level": 2, "title": "Renard Agile 🦊", "min": 100, "max": 300};
-    if (currentScore < 600) return {"level": 3, "title": "Renard Alpha 👑", "min": 300, "max": 600};
-    if (currentScore < 1000) return {"level": 4, "title": "Maître Renard 🌟", "min": 600, "max": 1000};
-    
-    return {"level": 5, "title": "Légende du Fitness 🔥", "min": 1000, "max": 9999};
+    if (currentScore < 100) {
+      return {'level': 1, 'title': 'Jeune Renardeau 🐾', 'min': 0, 'max': 100};
+    }
+    if (currentScore < 300) {
+      return {'level': 2, 'title': 'Renard Agile 🦊', 'min': 100, 'max': 300};
+    }
+    if (currentScore < 600) {
+      return {'level': 3, 'title': 'Renard Alpha 👑', 'min': 300, 'max': 600};
+    }
+    if (currentScore < 1000) {
+      return {'level': 4, 'title': 'Maître Renard 🌟', 'min': 600, 'max': 1000};
+    }
+    return {'level': 5, 'title': 'Légende du Fitness 🔥', 'min': 1000, 'max': 9999};
   }
 
   @override
   Widget build(BuildContext context) {
-    var levelInfo = _getLevelInfo(score);
-    int minXp = levelInfo['min'];
-    int maxXp = levelInfo['max'];
-    
+    final levelInfo = _getLevelInfo(score);
+    final minXp = levelInfo['min'] as int;
+    final maxXp = levelInfo['max'] as int;
+
     double progress = (score - minXp) / (maxXp - minXp);
     if (progress < 0) progress = 0;
     if (progress > 1) progress = 1;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade100,
+      backgroundColor: _bg,
       body: Column(
         children: [
-          // 🟧 EN-TÊTE ORANGE (CARTE DE JOUEUR)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.only(top: 60, bottom: 30),
-            decoration: const BoxDecoration(
-              color: Colors.orange,
-              borderRadius: BorderRadius.only(
-                bottomLeft: Radius.circular(40),
-                bottomRight: Radius.circular(40),
+            padding: const EdgeInsets.only(top: 56, bottom: 28),
+            decoration: BoxDecoration(
+              color: _appBarFill,
+              border: Border(
+                bottom: BorderSide(color: _cyan.withValues(alpha: 0.25), width: 0.5),
               ),
+              boxShadow: [
+                BoxShadow(
+                  color: _magenta.withValues(alpha: 0.08),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 30),
+                        icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
                         onPressed: () => Navigator.pop(context),
                       ),
-                      const Text(
-                        "Mon Profil",
-                        style: TextStyle(fontSize: 22, color: Colors.white, fontWeight: FontWeight.bold),
+                      const Expanded(
+                        child: Text(
+                          'Mon Profil',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 22,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                      // 👇 Le bouton de déconnexion est maintenant branché !
                       IconButton(
-                        icon: const Icon(Icons.logout, color: Colors.white, size: 28),
-                        onPressed: _logout, 
+                        tooltip: 'Supprimer mon compte',
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          color: Colors.red.withValues(alpha: 0.45),
+                          size: 22,
+                        ),
+                        onPressed: () => _showDeleteConfirmation(context),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.logout, color: Colors.white, size: 26),
+                        onPressed: _logout,
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
-                const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Colors.white,
-                  child: Icon(Icons.person, size: 60, color: Colors.orange),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [_cyan.withValues(alpha: 0.9), _magenta.withValues(alpha: 0.85)],
+                    ),
+                  ),
+                  child: CircleAvatar(
+                    radius: 48,
+                    backgroundColor: _card,
+                    child: Icon(Icons.person, size: 52, color: _cyan.withValues(alpha: 0.9)),
+                  ),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 14),
                 Text(
                   pseudo,
-                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(height: 6),
                 Text(
-                  "Niveau ${levelInfo['level']} : ${levelInfo['title']}",
-                  style: const TextStyle(fontSize: 16, color: Colors.white70, fontWeight: FontWeight.w500),
+                  'Niveau ${levelInfo['level']} : ${levelInfo['title']}',
+                  style: TextStyle(
+                    fontSize: 15,
+                    color: Colors.white.withValues(alpha: 0.65),
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 50),
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
                   child: Column(
                     children: [
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
                           value: progress,
-                          minHeight: 12,
-                          backgroundColor: Colors.black.withOpacity(0.2),
-                          valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                          minHeight: 10,
+                          backgroundColor: Colors.white.withValues(alpha: 0.12),
+                          valueColor: AlwaysStoppedAnimation<Color>(_cyan),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        "$score / $maxXp XP",
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                      )
+                        '$score / $maxXp XP',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ),
-
-          const SizedBox(height: 20),
-
-          // ⬜ LES CARTES DE STATISTIQUES ET LE BOUTON ROUGE
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.fromLTRB(20, 20, 20, 24),
               children: [
                 Row(
                   children: [
-                    Expanded(child: _buildStatCard(Icons.star, Colors.amber, "$score pts", "Score Total")),
-                    const SizedBox(width: 15),
-                    Expanded(child: _buildStatCard(Icons.local_fire_department, Colors.redAccent, "$streak jours", "Série")),
+                    Expanded(
+                      child: _buildStatCard(
+                        Icons.star_rounded,
+                        _cyan,
+                        '$score pts',
+                        'Score total',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _buildStatCard(
+                        Icons.local_fire_department_rounded,
+                        _magenta,
+                        '$streak jours',
+                        'Série',
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 15),
-                _buildStatCard(Icons.check_circle, Colors.green, "$totalMissions", "Missions Terminées"),
-                
-                const SizedBox(height: 40), // Espace avant le bouton de suppression
-                
-                // 👇 LE NOUVEAU BOUTON DE SUPPRESSION
-                OutlinedButton.icon(
-                  onPressed: () => _showDeleteConfirmation(context),
-                  icon: const Icon(Icons.delete_forever, color: Colors.red),
-                  label: const Text("Supprimer mon compte", style: TextStyle(color: Colors.red, fontSize: 16)),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 15),
-                    side: const BorderSide(color: Colors.red, width: 2),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-                  ),
+                const SizedBox(height: 12),
+                _buildStatCard(
+                  Icons.check_circle_outline_rounded,
+                  _cyan,
+                  '$totalMissions',
+                  'Missions terminées',
+                  fullWidth: true,
                 ),
-                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -243,34 +291,49 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildStatCard(IconData icon, Color iconColor, String value, String label) {
+  Widget _buildStatCard(
+    IconData icon,
+    Color accent,
+    String value,
+    String label, {
+    bool fullWidth = false,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+      width: fullWidth ? double.infinity : null,
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        color: _card,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _cyan.withValues(alpha: 0.35), width: 0.5),
         boxShadow: [
           BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            blurRadius: 10,
-            spreadRadius: 2,
-            offset: const Offset(0, 5),
-          )
+            color: Colors.black.withValues(alpha: 0.35),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 40, color: iconColor),
+          Icon(icon, size: 36, color: accent),
           const SizedBox(height: 10),
           Text(
             value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87),
+            style: const TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+            ),
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 4),
           Text(
             label,
-            style: const TextStyle(fontSize: 14, color: Colors.grey),
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.white.withValues(alpha: 0.55),
+            ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),

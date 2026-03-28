@@ -3,8 +3,8 @@
     "",
     "\\Backend",
     "\\Backend\\VulpiFit",
-    "\\Backend\\VulpiFit\\VulpiFit.API",
     "\\lib"
   ],
+  "SelectedNode": "\\Backend\\VulpiFit\\VulpiFit.slnx",
   "PreviewInSolutionExplorer": false
 }

@@ -1,9 +1,10 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using VulpiFit.API.Data;
 using VulpiFit.API.Models;
 using VulpiFit.API.Services;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 
 namespace VulpiFit.API.Controllers
 {
@@ -21,10 +22,69 @@ namespace VulpiFit.API.Controllers
             _groqService = groqService;
         }
 
+        /// <summary>
+        /// Normalise une date issue de la BDD (souvent Kind=Unspecified) comme UTC pour la comparaison de streak.
+        /// </summary>
+        private static DateTime NormalizeActivityUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
+        }
+
+        /// <summary>
+        /// Jour calendaire local : évite le bug minuit (ex. validation à 00h01 le « nouveau » jour
+        /// alors que UTC était encore « hier » par rapport aux missions basées sur DateTime.Today serveur).
+        /// </summary>
+        private static DateTime GetLocalCalendarDayFromUtc(DateTime utc)
+        {
+            return TimeZoneInfo.ConvertTimeFromUtc(DateTime.SpecifyKind(utc, DateTimeKind.Utc), TimeZoneInfo.Local).Date;
+        }
+
+        private static void UpdateStreakForCompletion(User user, DateTime nowUtc)
+        {
+            var todayLocal = GetLocalCalendarDayFromUtc(nowUtc);
+            DateTime? lastLocalDay = null;
+            if (user.LastActivityDate.HasValue)
+            {
+                var lastUtc = NormalizeActivityUtc(user.LastActivityDate.Value);
+                lastLocalDay = GetLocalCalendarDayFromUtc(lastUtc);
+            }
+
+            if (lastLocalDay == null)
+            {
+                if (user.CurrentStreak <= 0) user.CurrentStreak = 1;
+            }
+            else if (lastLocalDay == todayLocal)
+            {
+                if (user.CurrentStreak == 0) user.CurrentStreak = 1;
+            }
+            else if (lastLocalDay == todayLocal.AddDays(-1))
+            {
+                user.CurrentStreak += 1;
+            }
+            else
+            {
+                user.CurrentStreak = 1;
+            }
+
+            user.LastActivityDate = nowUtc;
+        }
+
         // GET: api/Missions
         [HttpGet("{userId}")]
         public async Task<ActionResult<IEnumerable<Mission>>> GetMissionsForUser(int userId)
         {
+            // Vérification de sécurité : l'utilisateur ne peut voir que ses propres missions
+            var authenticatedUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (authenticatedUserId != userId.ToString())
+            {
+                return Forbid();
+            }
+
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound("Utilisateur non trouvé.");
 
@@ -82,6 +142,13 @@ namespace VulpiFit.API.Controllers
         [HttpPost("Complete/{id}")]
         public async Task<IActionResult> CompleteMission(int id, [FromQuery] int userId)
         {
+            // Vérification de sécurité
+            var authenticatedUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (authenticatedUserId != userId.ToString())
+            {
+                return Forbid();
+            }
+
             var mission = await _context.Missions.FindAsync(id);
             if (mission == null || mission.UserId != userId) return NotFound();
 
@@ -97,28 +164,9 @@ namespace VulpiFit.API.Controllers
                     user.Score += mission.Points;
                     user.TotalMissionsCompleted += 1;
 
-                    // 2. LOGIQUE DE LA STREAK (SÉRIE DE JOURS)
-                    var today = DateTime.UtcNow.Date;
-                    var lastActivity = user.LastActivityDate?.Date;
-
-                    if (lastActivity == today.AddDays(-1))
-                    {
-                        user.CurrentStreak += 1;
-                    }
-                    else if (lastActivity == today)
-                    {
-                        if (user.CurrentStreak == 0)
-                        {
-                            user.CurrentStreak = 1;
-                        }
-                    }
-                    else
-                    {
-                        user.CurrentStreak = 1;
-                    }
-
-                    // 3. On met à jour la date de dernière activité
-                    user.LastActivityDate = DateTime.UtcNow;
+                    // 2. Streak : jours calendaires **locaux** (minuit / 00h01 inclus)
+                    var nowUtc = DateTime.UtcNow;
+                    UpdateStreakForCompletion(user, nowUtc);
                 }
 
                 await _context.SaveChangesAsync();
@@ -131,6 +179,13 @@ namespace VulpiFit.API.Controllers
         [HttpPost("Undo/{id}")]
         public async Task<IActionResult> UndoMission(int id, [FromQuery] int userId)
         {
+            // Vérification de sécurité
+            var authenticatedUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (authenticatedUserId != userId.ToString())
+            {
+                return Forbid();
+            }
+
             var mission = await _context.Missions.FirstOrDefaultAsync(m => m.Id == id && m.UserId == userId);
             if (mission == null) return NotFound();
 
@@ -197,3 +252,4 @@ namespace VulpiFit.API.Controllers
         }
     }
 }
+

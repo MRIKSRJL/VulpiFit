@@ -3,6 +3,10 @@
   "WorkspaceRootPath": "C:\\Users\\sirey\\OneDrive\\Documents\\VulpiFit\\",
   "Documents": [
     {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\sirey\\OneDrive\\Documents\\VulpiFit\\.vs\\tasks.vs.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:.vs\\tasks.vs.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
       "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\sirey\\OneDrive\\Documents\\VulpiFit\\Views\\Missions\\Create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}",
       "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Views\\Missions\\Create.cshtml||{40D31677-CBC0-4297-A9EF-89D907823A98}"
     }
@@ -23,6 +27,19 @@
             {
               "$type": "Document",
               "DocumentIndex": 0,
+              "Title": "tasks.vs.json",
+              "DocumentMoniker": "C:\\Users\\sirey\\OneDrive\\Documents\\VulpiFit\\.vs\\tasks.vs.json",
+              "RelativeDocumentMoniker": ".vs\\tasks.vs.json",
+              "ToolTip": "C:\\Users\\sirey\\OneDrive\\Documents\\VulpiFit\\.vs\\tasks.vs.json",
+              "RelativeToolTip": ".vs\\tasks.vs.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAcAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-03-19T07:21:30.804Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
               "Title": "Create.cshtml",
               "DocumentMoniker": "C:\\Users\\sirey\\OneDrive\\Documents\\VulpiFit\\Views\\Missions\\Create.cshtml",
               "RelativeDocumentMoniker": "Views\\Missions\\Create.cshtml",

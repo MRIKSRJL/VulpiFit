@@ -14,13 +14,26 @@ class Mission {
   });
 
   factory Mission.fromJson(Map<String, dynamic> json) {
-    // 🛡️ On ajoute des valeurs par défaut (fallback) si l'API renvoie du vide ou du null
+    dynamic v(String camel, String pascal) => json[camel] ?? json[pascal];
+
+    final idVal = v('id', 'Id');
+    final pointsVal = v('points', 'Points');
+    final completedVal = v('isCompleted', 'IsCompleted');
+
     return Mission(
-      id: json['id'] ?? 0,
-      title: json['title'] ?? 'Mission inconnue',
-      type: json['type'] ?? 'Inconnu', // 👈 Le filet de sécurité est ici !
-      points: json['points'] ?? 0,
-      isCompleted: json['isCompleted'] ?? false,
+      id: idVal is int ? idVal : int.tryParse('$idVal') ?? 0,
+      title: '${v('title', 'Title') ?? 'Mission inconnue'}',
+      type: '${v('type', 'Type') ?? 'Inconnu'}',
+      points: pointsVal is int ? pointsVal : int.tryParse('$pointsVal') ?? 0,
+      isCompleted: completedVal == true || completedVal == 1,
     );
+  }
+
+  /// Filtre tolérant (casse + sous-chaîne dans le titre si besoin).
+  bool matchesCategory(String keyword) {
+    final k = keyword.toLowerCase().trim();
+    final t = type.toLowerCase();
+    if (t.contains(k)) return true;
+    return title.toLowerCase().contains(k);
   }
 }

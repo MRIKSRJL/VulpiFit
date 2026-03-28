@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/mission.dart';
@@ -6,7 +7,14 @@ import 'dart:io';    // 🛡️ Pour détecter les coupures réseau (SocketExcep
 import 'dart:async'; // ⏱️ Pour gérer le chronomètre (TimeoutException)
 
 class MissionService {
-  static const String baseUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api"; 
+  static const String baseUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api";
+
+  /// Incrémenté après succès API qui impacte la roadmap (missions, bilan).
+  static final ValueNotifier<int> roadmapRefreshTick = ValueNotifier<int>(0);
+
+  static void _notifyRoadmapRefresh() {
+    roadmapRefreshTick.value++;
+  }
 
   static int currentUserId = 0; 
   static String currentUserPseudo = "";
@@ -171,6 +179,7 @@ class MissionService {
       ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200 || response.statusCode == 204) {
+        _notifyRoadmapRefresh();
         return true;
       } else {
         throw "Erreur serveur : ${response.statusCode}";
@@ -199,7 +208,10 @@ class MissionService {
         headers: {"Authorization": "Bearer $token"},
       ).timeout(const Duration(seconds: 30)); 
 
-      if (response.statusCode == 200 || response.statusCode == 204) return true;
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        _notifyRoadmapRefresh();
+        return true;
+      }
       throw "Erreur serveur";
     } on SocketException {
       throw "Pas de connexion internet 📶.";
@@ -251,7 +263,11 @@ class MissionService {
         },
         body: jsonEncode({'FeedbackText': feedback, 'DifficultyLevel': difficulty}),
       ).timeout(const Duration(seconds: 30));
-      return response.statusCode == 200;
+      if (response.statusCode == 200) {
+        _notifyRoadmapRefresh();
+        return true;
+      }
+      return false;
     } catch (e) {
       return false;
     }
