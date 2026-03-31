@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using System.Text.Json;
 using VulpiFit.API.Models;
 
@@ -12,33 +12,75 @@ namespace VulpiFit.API.Services
         public GroqService(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
-            _apiKey = _apiKey = config["GroqApiKey"] ?? ""; 
+            _apiKey = config["GroqApiKey"] ?? string.Empty;
         }
 
-        // 👇 NOUVEAU : On ajoute l'historique en paramètre
-        public async Task<List<Mission>> GenerateDailyMissionsAsync(User user, List<ExerciseLog> exerciseHistory)
+        private static string BuildStreakBlock(int streak)
         {
-            if (string.IsNullOrEmpty(_apiKey) || _apiKey == "TA_CLE_GROQ_GSK_ICI")
+            if (streak <= 0)
             {
-                Console.WriteLine("🛑 ERREUR CRITIQUE : La clé API Groq est introuvable !");
-                return new List<Mission>();
+                return @"CAS STREAK = 0 (BIENVEILLANCE) :
+- L'utilisateur débute ou a perdu sa série.
+- Adopte un ton ultra bienveillant, rassurant et dédramatisant.
+- Objectif principal : lui redonner confiance et relancer la machine, pas le dégoûter.
+- Propose des missions TRÈS faciles pour Sport, Nutrition et Mental.
+  Exemples Sport : ""10 pompes en 1 ou plusieurs fois"", ""1 série de 10 squats au poids du corps"", ""5 minutes de marche douce"".
+  Exemples Nutrition : ""Boire au moins 1L d'eau"", ""Ajouter un fruit dans la journée"".
+  Exemples Mental : ""2 minutes de respiration profonde"", ""1 minute de gratitude le soir"".
+- Évite les burpees, les grosses charges ou les contraintes complexes.";
             }
 
-            // 1. 🔄 PRÉPARATION DE L'HISTORIQUE POUR L'IA
+            if (streak is >= 1 and <= 10)
+            {
+                return @"CAS STREAK 1 À 10 (ROUTINE) :
+- L'utilisateur construit sa discipline, il est sur une bonne lancée.
+- Adopte un ton fier, enthousiaste et motivant (comme un coach fier de son élève).
+- Les missions doivent être de difficulté MODÉRÉE : ni trop faciles, ni extrêmes.
+- Conserve une structure claire et répétable (routine) pour ancrer des habitudes.
+- Sport : volume standard, charges cohérentes, un peu de surcharge progressive mais sans violence.
+- Nutrition : repas équilibrés, macros approximatives mais pédagogiques.
+- Mental : méditations courtes, routines de sommeil simples, étirements réguliers.";
+            }
+
+            return @"CAS STREAK > 10 (MODE BOSS) :
+- L'utilisateur est en série longue : traite-le comme une machine disciplinée.
+- Adopte un ton extatique, impressionné, presque ""commentateur e-sport"".
+- Applique une VRAIE SURCHARGE PROGRESSIVE sur les exercices répétés :
+  - Augmente significativement la charge (2.5kg ou plus) OU le volume (séries / reps).
+  - Introduis des exercices plus avancés : burpees, fractionné, supersets, tempo lent, etc.
+- Nutrition : propose des missions plus ambitieuses (repas macro-calculés, préparation à l'avance, contrôle précis).
+- Mental : séances plus longues (ex : 10–20 minutes de méditation), écritures de journal, défis de discipline (pas d'écran avant le coucher, etc.).
+- Garde cependant 1 à 2 missions ""faciles / plaisir"" pour éviter le burn-out psychologique.";
+        }
+
+        /// Construit le prompt complet envoyé à Groq (utilisé aussi par l'endpoint de debug).
+        public string BuildDailyMissionPrompt(User user, List<ExerciseLog> exerciseHistory)
+        {
+            // 1. Historique pour la surcharge progressive
             string historyText = "Aucun historique d'exercice récent. Propose des charges de départ prudentes pour évaluer son niveau.";
             if (exerciseHistory != null && exerciseHistory.Any())
             {
-                var historyLines = exerciseHistory.Select(e => $"- {e.ExerciseName} : {e.Weight}kg x {e.Reps} reps (le {e.Date:dd/MM})");
+                var historyLines = exerciseHistory.Select(e =>
+                    $"- {e.ExerciseName} : {e.Weight}kg x {e.Reps} reps (le {e.Date:dd/MM})");
                 historyText = string.Join("\n", historyLines);
             }
 
-            // 2. 🧠 LE NOUVEAU PROMPT SURPUISSANT
+            var goals = user.Goals ?? "Garder la forme";
+            var injuries = user.Injuries ?? "Aucune";
+            var streak = user.CurrentStreak;
+
+            var streakBlock = BuildStreakBlock(streak);
+
             var prompt = $@"Tu es VulpiFit, un coach sportif et nutritionnel virtuel expert.
 Aujourd'hui, tu dois générer un programme complet pour cet utilisateur sous forme de multiples missions :
-- Objectif : {user.Goals ?? "Garder la forme"}
+- Objectif : {goals}
 - Poids : {user.Weight} kg
 - Taille : {user.Height} cm
-- Blessures : {user.Injuries ?? "Aucune"}
+- Blessures : {injuries}
+- Streak actuel (série de jours consécutifs) : {streak} jour(s).
+
+INSTRUCTIONS STREAK (SURCHARGE PROGRESSIVE & PSYCHOLOGIQUE) :
+{streakBlock}
 
 HISTORIQUE DES PERFORMANCES RÉCENTES (Pour la surcharge progressive) :
 {historyText}
@@ -50,7 +92,6 @@ INCLUS OBLIGATOIREMENT la charge et les répétitions dans le titre (ex: 'Dével
 2. NUTRITION : Génère 2 à 4 missions de 'Nutrition' réparties sur la journée (ex: Petit-déjeuner, Déjeuner, Dîner, Collation) adaptées à ses objectifs spécifiques.
 3. MENTAL : Génère 1 ou 2 missions de 'Mental' (ex: Méditation, lecture, étirements relaxants).";
 
-            // Ajout du feedback s'il existe
             if (!string.IsNullOrEmpty(user.LastFeedback))
             {
                 prompt += $@"
@@ -72,6 +113,20 @@ Exemple de format attendu :
   { ""Title"": ""Petit-déjeuner riche en protéines"", ""Type"": ""Nutrition"", ""Points"": 15 },
   { ""Title"": ""10 minutes de cohérence cardiaque"", ""Type"": ""Mental"", ""Points"": 15 }
 ]";
+
+            return prompt;
+        }
+
+        // Génération standard des missions pour l'application
+        public async Task<List<Mission>> GenerateDailyMissionsAsync(User user, List<ExerciseLog> exerciseHistory)
+        {
+            if (string.IsNullOrEmpty(_apiKey) || _apiKey == "TA_CLE_GROQ_GSK_ICI")
+            {
+                Console.WriteLine("🛑 ERREUR CRITIQUE : La clé API Groq est introuvable !");
+                return new List<Mission>();
+            }
+
+            var prompt = BuildDailyMissionPrompt(user, exerciseHistory);
 
             var requestBody = new
             {

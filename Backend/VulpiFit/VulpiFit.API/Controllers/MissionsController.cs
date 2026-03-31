@@ -203,6 +203,44 @@ namespace VulpiFit.API.Controllers
             }
             return Ok();
         }
+
+        /// <summary>
+        /// ENDPOINT DE DEBUG (temporaire) :
+        /// Permet de visualiser le prompt exact envoyé à Groq pour différents niveaux de streak,
+        /// SANS appeler l'API Groq. Utilise un utilisateur synthétique.
+        /// Exemple :
+        ///   GET /api/Missions/debug/groq-prompt?streak=0
+        ///   GET /api/Missions/debug/groq-prompt?streak=5
+        ///   GET /api/Missions/debug/groq-prompt?streak=15
+        /// </summary>
+        [HttpGet("debug/groq-prompt")]
+        [AllowAnonymous]
+        public ActionResult<object> GetGroqPromptDebug([FromQuery] int streak = 0)
+        {
+            var fakeUser = new User
+            {
+                Id = 0,
+                Pseudo = $"Debug_Streak_{streak}",
+                CurrentStreak = streak,
+                Score = 0,
+                TotalMissionsCompleted = 0,
+                Weight = 70,
+                Height = 175,
+                Injuries = "Aucune blessure majeure",
+                Goals = "Perte de gras et gain de force",
+                LastFeedback = "Debug prompt uniquement.",
+                LastDifficulty = 5
+            };
+
+            var prompt = _groqService.BuildDailyMissionPrompt(fakeUser, new List<ExerciseLog>());
+
+            return Ok(new
+            {
+                streak,
+                pseudo = fakeUser.Pseudo,
+                prompt
+            });
+        }
         // ROUTE  POUR LE SITE WEB ADMIN (MVC)
         [HttpGet]
         [AllowAnonymous] // dit au videur de laisser passer la requête sans Token VIP

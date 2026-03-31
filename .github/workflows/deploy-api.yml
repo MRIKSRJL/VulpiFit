@@ -1,0 +1,34 @@
+name: Deploy API to Azure
+
+on:
+  push:
+    branches:
+      - main # Se déclenche à chaque push sur la branche main
+    paths:
+      - 'Backend/VulpiFit/VulpiFit.API/**' # Ne se déclenche que si le code C# est modifié
+
+jobs:
+  build-and-deploy:
+    runs-on: windows-latest
+
+    steps:
+      - name: 📥 Récupération du code
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Configuration de .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.x'
+
+      - name: 🔨 Compilation de l'API (Build)
+        run: dotnet build Backend/VulpiFit/VulpiFit.API/VulpiFit.API.csproj --configuration Release
+
+      - name: 📦 Préparation des fichiers (Publish)
+        run: dotnet publish Backend/VulpiFit/VulpiFit.API/VulpiFit.API.csproj -c Release -o "${{ env.DOTNET_ROOT }}/myapp"
+
+      - name: 🚀 Déploiement sur Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'FitnessFoxAPI20260301200033'
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: '${{ env.DOTNET_ROOT }}/myapp'
