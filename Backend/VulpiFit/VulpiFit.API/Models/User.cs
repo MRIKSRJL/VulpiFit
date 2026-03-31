@@ -1,4 +1,4 @@
-﻿namespace VulpiFit.API.Models
+namespace VulpiFit.API.Models
 {
     public class User
     {
@@ -15,5 +15,9 @@
         public string? Goals { get; set; } // ex: "Perte de poids", "Prise de masse"
         public string? LastFeedback { get; set; } // Le texte de son ressenti
         public int? LastDifficulty { get; set; }  // La note de 1 à 10
+
+        // Navigation Friends (demande envoyée / reçue)
+        public ICollection<Friendship> SentFriendships { get; set; } = new List<Friendship>();
+        public ICollection<Friendship> ReceivedFriendships { get; set; } = new List<Friendship>();
     }
 }

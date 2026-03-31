@@ -63,6 +63,7 @@ catch
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(defaultConnectionString));
 builder.Services.AddHttpClient<VulpiFit.API.Services.GroqService>();
+builder.Services.AddScoped<VulpiFit.API.Services.CoopStreakService>();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();

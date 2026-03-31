@@ -15,11 +15,16 @@ namespace VulpiFit.API.Controllers
     {
         private readonly ApplicationDbContext _context;
         private readonly GroqService _groqService;
+        private readonly CoopStreakService _coopStreakService;
 
-        public MissionsController(ApplicationDbContext context, GroqService groqService)
+        public MissionsController(
+            ApplicationDbContext context,
+            GroqService groqService,
+            CoopStreakService coopStreakService)
         {
             _context = context;
             _groqService = groqService;
+            _coopStreakService = coopStreakService;
         }
 
         /// <summary>
@@ -170,6 +175,7 @@ namespace VulpiFit.API.Controllers
                 }
 
                 await _context.SaveChangesAsync();
+                await _coopStreakService.UpdateCoopStreakAsync(userId);
             }
 
             return Ok(mission);
