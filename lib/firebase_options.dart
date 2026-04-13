@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '378463742818',
     projectId: 'vulpifit',
     storageBucket: 'vulpifit.firebasestorage.app',
-    iosBundleId: 'com.example.VulpiFit',
+    iosBundleId: 'com.vulpifit.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -73,7 +73,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '378463742818',
     projectId: 'vulpifit',
     storageBucket: 'vulpifit.firebasestorage.app',
-    iosBundleId: 'com.example.VulpiFit',
+    iosBundleId: 'com.vulpifit.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

@@ -1,0 +1,443 @@
+{
+  "info": {
+    "_postman_id": "9df8a78d-b3d4-4f5d-bc88-4a67d8722f11",
+    "name": "VulpiFit Friends + Coop Flow",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1) Login Joueur A (RenardAlpha)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login A OK', function () {",
+              "  pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('tokenA', json.Token || json.token);",
+              "pm.collectionVariables.set('userIdA', (json.User || json.user).Id ?? (json.User || json.user).id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pseudo\": \"{{pseudoA}}\",\n  \"password\": \"{{passwordA}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/Users/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Users",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "2) Login Joueur B (RenardBeta)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Login B OK', function () {",
+              "  pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "const json = pm.response.json();",
+              "pm.collectionVariables.set('tokenB', json.Token || json.token);",
+              "pm.collectionVariables.set('userIdB', (json.User || json.user).Id ?? (json.User || json.user).id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"pseudo\": \"{{pseudoB}}\",\n  \"password\": \"{{passwordB}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/Users/login",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Users",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3) A recherche 'Beta'",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Recherche OK', function () {",
+              "  pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "const users = pm.response.json();",
+              "pm.test('RenardBeta apparait dans les resultats', function () {",
+              "  const hasBeta = users.some(u => (u.Pseudo || u.pseudo || '').toLowerCase().includes('beta'));",
+              "  pm.expect(hasBeta).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/search?pseudo=Beta",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "search"
+          ],
+          "query": [
+            {
+              "key": "pseudo",
+              "value": "Beta"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "4) A envoie demande d'ami a B",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Demande ami envoyee', function () {",
+              "  pm.expect([200, 201]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/request/{{userIdB}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "request",
+            "{{userIdB}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5) B recupere demandes en attente",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Liste demandes B OK', function () {",
+              "  pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "const json = pm.response.json();",
+              "const pending = json.pendingReceived || json.PendingReceived || [];",
+              "const req = pending.find(x => ((x.fromUserId ?? x.FromUserId) + '') === (pm.collectionVariables.get('userIdA') + ''));",
+              "pm.test('Demande de A presente pour B', function () {",
+              "  pm.expect(req).to.not.be.undefined;",
+              "});",
+              "if (req) {",
+              "  pm.collectionVariables.set('friendshipId', req.id ?? req.Id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenB}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/my-friends",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "my-friends"
+          ]
+        }
+      }
+    },
+    {
+      "name": "6) B accepte la demande d'ami",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Acceptation ami OK', function () {",
+              "  pm.expect([200, 204]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenB}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/accept/{{friendshipId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "accept",
+            "{{friendshipId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "7) A confirme ami accepte",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Liste amis A OK', function () {",
+              "  pm.expect(pm.response.code).to.eql(200);",
+              "});",
+              "const json = pm.response.json();",
+              "const accepted = json.acceptedFriends || json.AcceptedFriends || [];",
+              "const friend = accepted.find(x => ((x.friendId ?? x.FriendId) + '') === (pm.collectionVariables.get('userIdB') + ''));",
+              "pm.test('B est bien dans les amis de A', function () {",
+              "  pm.expect(friend).to.not.be.undefined;",
+              "});",
+              "if (friend) {",
+              "  pm.collectionVariables.set('friendshipId', friend.id ?? friend.Id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/my-friends",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "my-friends"
+          ]
+        }
+      }
+    },
+    {
+      "name": "8) A propose un Co-op Streak",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Proposition Co-op OK', function () {",
+              "  pm.expect([200, 204]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenA}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/coop/propose/{{friendshipId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "coop",
+            "propose",
+            "{{friendshipId}}"
+          ]
+        }
+      }
+    },
+    {
+      "name": "9) B accepte le Co-op Streak",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Acceptation Co-op OK', function () {",
+              "  pm.expect([200, 204]).to.include(pm.response.code);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{tokenB}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/Friends/coop/accept/{{friendshipId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "Friends",
+            "coop",
+            "accept",
+            "{{friendshipId}}"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api"
+    },
+    {
+      "key": "pseudoA",
+      "value": "RenardAlpha"
+    },
+    {
+      "key": "passwordA",
+      "value": "CHANGE_ME_A"
+    },
+    {
+      "key": "pseudoB",
+      "value": "RenardBeta"
+    },
+    {
+      "key": "passwordB",
+      "value": "CHANGE_ME_B"
+    },
+    {
+      "key": "tokenA",
+      "value": ""
+    },
+    {
+      "key": "tokenB",
+      "value": ""
+    },
+    {
+      "key": "userIdA",
+      "value": ""
+    },
+    {
+      "key": "userIdB",
+      "value": ""
+    },
+    {
+      "key": "friendshipId",
+      "value": ""
+    }
+  ]
+}

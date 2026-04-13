@@ -10,7 +10,8 @@ import 'package:vibration/vibration.dart';
 /// Sur Android, utilise le moteur natif [Vibration] (souvent plus fiable que [HapticFeedback] seul).
 /// Le MP3 est lu en [PlayerMode.mediaPlayer] avec contexte audio adapté.
 abstract final class MissionSuccessFeedback {
-  static const String _asset = 'assets/victory_fanfare.mp3';
+  // AssetSource ajoute déjà le préfixe assets/ en interne.
+  static const String _asset = 'victory_fanfare.mp3';
   static const Duration _cutoff = Duration(milliseconds: 850);
 
   static AudioContext? _androidCtx() {

@@ -56,46 +56,47 @@ namespace VulpiFit.API.Controllers
         [HttpPost("request/{receiverId:int}")]
         public async Task<IActionResult> SendFriendRequest(int receiverId)
         {
-            var requesterId = GetCurrentUserId();
-            if (requesterId == null) return Unauthorized();
-            if (requesterId.Value == receiverId) return BadRequest("Tu ne peux pas t'ajouter toi-même.");
-
-            var receiverExists = await _context.Users.AnyAsync(u => u.Id == receiverId);
-            if (!receiverExists) return NotFound("Utilisateur introuvable.");
-
-            var existing = await _context.Friendships.FirstOrDefaultAsync(f =>
-                (f.RequesterId == requesterId.Value && f.ReceiverId == receiverId) ||
-                (f.RequesterId == receiverId && f.ReceiverId == requesterId.Value));
-
-            if (existing != null)
+            try
             {
-                if (existing.Status == FriendshipStatus.Accepted)
-                    return Conflict("Vous êtes déjà amis.");
-                if (existing.Status == FriendshipStatus.Pending)
-                    return Conflict("Une demande est déjà en attente.");
+                var requesterId = GetCurrentUserId();
+                if (requesterId == null) return Unauthorized();
 
-                // Recycle une ancienne demande refusée
-                existing.RequesterId = requesterId.Value;
-                existing.ReceiverId = receiverId;
-                existing.Status = FriendshipStatus.Pending;
-                existing.CoopStreakStatus = CoopStreakStatus.None;
-                existing.CurrentCoopStreak = 0;
-                existing.LastCoopMaintenanceDate = null;
+                if (requesterId.Value == receiverId)
+                    return BadRequest("Tu ne peux pas t'ajouter toi-même.");
+
+                var requesterExists = await _context.Users.AnyAsync(u => u.Id == requesterId.Value);
+                if (!requesterExists)
+                    return BadRequest("Utilisateur connecté introuvable.");
+
+                var receiverExists = await _context.Users.AnyAsync(u => u.Id == receiverId);
+                if (!receiverExists)
+                    return BadRequest("Utilisateur introuvable.");
+
+                var existing = await _context.Friendships.FirstOrDefaultAsync(f =>
+                    (f.RequesterId == requesterId.Value && f.ReceiverId == receiverId) ||
+                    (f.RequesterId == receiverId && f.ReceiverId == requesterId.Value));
+
+                if (existing != null)
+                    return BadRequest("Une demande existe déjà avec cet utilisateur.");
+
+                var friendship = new Friendship
+                {
+                    RequesterId = requesterId.Value,
+                    ReceiverId = receiverId,
+                    Status = FriendshipStatus.Pending,
+                    CoopStreakStatus = CoopStreakStatus.None,
+                    CurrentCoopStreak = 0,
+                    LastCoopMaintenanceDate = null
+                };
+
+                _context.Friendships.Add(friendship);
                 await _context.SaveChangesAsync();
-                return Ok(existing);
+                return Ok(friendship);
             }
-
-            var friendship = new Friendship
+            catch (Exception ex)
             {
-                RequesterId = requesterId.Value,
-                ReceiverId = receiverId,
-                Status = FriendshipStatus.Pending,
-                CoopStreakStatus = CoopStreakStatus.None
-            };
-
-            _context.Friendships.Add(friendship);
-            await _context.SaveChangesAsync();
-            return Ok(friendship);
+                return StatusCode(500, ex.InnerException?.Message ?? ex.Message);
+            }
         }
 
         [HttpPut("accept/{friendshipId:int}")]
@@ -179,6 +180,37 @@ namespace VulpiFit.API.Controllers
                 pendingReceived,
                 pendingSent
             });
+        }
+
+        [HttpGet("profile/{friendUserId:int}")]
+        public async Task<IActionResult> GetFriendProfile(int friendUserId)
+        {
+            var currentUserId = GetCurrentUserId();
+            if (currentUserId == null) return Unauthorized();
+
+            var isAcceptedFriend = await _context.Friendships.AnyAsync(f =>
+                f.Status == FriendshipStatus.Accepted &&
+                ((f.RequesterId == currentUserId.Value && f.ReceiverId == friendUserId) ||
+                 (f.ReceiverId == currentUserId.Value && f.RequesterId == friendUserId)));
+
+            if (!isAcceptedFriend)
+                return StatusCode(403, "Profil accessible uniquement pour des amis acceptés.");
+
+            var friend = await _context.Users
+                .Where(u => u.Id == friendUserId)
+                .Select(u => new
+                {
+                    u.Id,
+                    u.Pseudo,
+                    u.Score,
+                    u.CurrentStreak,
+                    u.TotalMissionsCompleted
+                })
+                .FirstOrDefaultAsync();
+
+            if (friend == null) return NotFound("Ami introuvable.");
+
+            return Ok(friend);
         }
 
         [HttpPost("coop/propose/{friendshipId:int}")]

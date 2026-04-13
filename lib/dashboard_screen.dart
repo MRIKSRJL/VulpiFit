@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'friends_screen.dart';
 import 'mental_screen.dart';
 import 'nutrition_screen.dart';
 import 'profile_screen.dart';
@@ -131,6 +132,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 MaterialPageRoute(builder: (context) => const ProgressScreen()),
               );
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.groups_rounded, size: 28),
+            tooltip: 'Amis & Co-op',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const FriendsScreen()),
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.account_circle, size: 30),

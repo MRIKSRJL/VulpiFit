@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/friendship.dart';
 import '../models/mission.dart';
 import 'dart:io';    // 🛡️ Pour détecter les coupures réseau (SocketException)
 import 'dart:async'; // ⏱️ Pour gérer le chronomètre (TimeoutException)
@@ -18,6 +19,35 @@ class MissionService {
 
   static int currentUserId = 0; 
   static String currentUserPseudo = "";
+
+  static Future<Map<String, String>> _authHeaders({bool withJson = true}) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('jwt_token');
+    if (token == null || token.isEmpty) {
+      throw "Aucun token JWT trouvé.";
+    }
+    return {
+      if (withJson) "Content-Type": "application/json",
+      "Authorization": "Bearer $token",
+    };
+  }
+
+  static String _extractApiMessage(http.Response response, {String? fallback}) {
+    final defaultMessage =
+        fallback ?? "Le serveur a renvoyé une erreur (${response.statusCode}).";
+    if (response.body.isEmpty) return defaultMessage;
+    try {
+      final dynamic decoded = jsonDecode(response.body);
+      if (decoded is String && decoded.trim().isNotEmpty) return decoded;
+      if (decoded is Map<String, dynamic>) {
+        final message = decoded['message'] ?? decoded['Message'] ?? decoded['error'] ?? decoded['Error'];
+        if (message is String && message.trim().isNotEmpty) return message;
+      }
+    } catch (_) {
+      // Ignore parsing error and fallback below.
+    }
+    return response.body;
+  }
 
   // 1. CONNEXION
   static Future<bool> login(String pseudo, String password) async {
@@ -359,6 +389,209 @@ class MissionService {
     } catch (e) {
       print("❌ Erreur Flutter lors de la suppression : $e");
       return false;
+    }
+  }
+
+  // 12. RECHERCHER DES UTILISATEURS (AMIS)
+  static Future<List<FriendSearchResult>> searchUsers(String pseudo) async {
+    try {
+      if (pseudo.trim().length < 2) return [];
+      final headers = await _authHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/Friends/search?pseudo=${Uri.encodeQueryComponent(pseudo.trim())}'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final list = jsonDecode(response.body) as List<dynamic>;
+        return list
+            .map((e) => FriendSearchResult.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList();
+      }
+      throw "Erreur serveur : ${response.statusCode}";
+    } catch (e) {
+      throw "Recherche impossible : $e";
+    }
+  }
+
+  // 13. ENVOYER DEMANDE D'AMI
+  static Future<bool> sendFriendRequest(int receiverId) async {
+    try {
+      print('Envoi de la requête vers /api/Friends/request/$receiverId');
+      final headers = await _authHeaders();
+      print("Headers d'auth récupérés pour receiverId=$receiverId");
+      final response = await http.post(
+        Uri.parse('$baseUrl/Friends/request/$receiverId'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+      print(
+        "Réponse /api/Friends/request/$receiverId: ${response.statusCode} - ${response.body}",
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return true;
+      }
+
+      throw _extractApiMessage(
+        response,
+        fallback: "Impossible d'envoyer la demande d'ami.",
+      );
+    } on SocketException {
+      print("SocketException sur /api/Friends/request/$receiverId");
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      print("TimeoutException sur /api/Friends/request/$receiverId");
+      throw "Le serveur met trop de temps à répondre 🐢.";
+    } catch (e) {
+      print("Erreur sendFriendRequest($receiverId): $e");
+      throw e.toString();
+    }
+  }
+
+  // 14. RÉCUPÉRER MA LISTE D'AMIS + PENDING
+  static Future<MyFriendsData> getMyFriends() async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/Friends/my-friends'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return MyFriendsData.fromJson(data);
+      }
+      throw "Erreur serveur : ${response.statusCode}";
+    } catch (e) {
+      throw "Impossible de récupérer les amis : $e";
+    }
+  }
+
+  // 15. ACCEPTER UNE DEMANDE
+  static Future<bool> acceptFriendRequest(int friendshipId) async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.put(
+        Uri.parse('$baseUrl/Friends/accept/$friendshipId'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      }
+
+      throw _extractApiMessage(
+        response,
+        fallback: "Impossible d'accepter la demande d'ami.",
+      );
+    } on SocketException {
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      throw "Le serveur met trop de temps à répondre 🐢.";
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // 16. REFUSER UNE DEMANDE
+  static Future<bool> rejectFriendRequest(int friendshipId) async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.put(
+        Uri.parse('$baseUrl/Friends/reject/$friendshipId'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      }
+
+      throw _extractApiMessage(
+        response,
+        fallback: "Impossible de refuser la demande d'ami.",
+      );
+    } on SocketException {
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      throw "Le serveur met trop de temps à répondre 🐢.";
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // 17. PROPOSER UN CO-OP STREAK
+  static Future<bool> proposeCoopStreak(int friendshipId) async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.post(
+        Uri.parse('$baseUrl/Friends/coop/propose/$friendshipId'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      }
+
+      throw _extractApiMessage(
+        response,
+        fallback: "Impossible de proposer un Co-op Streak.",
+      );
+    } on SocketException {
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      throw "Le serveur met trop de temps à répondre 🐢.";
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  // 18. ACCEPTER UN CO-OP STREAK
+  static Future<bool> acceptCoopStreak(int friendshipId) async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.put(
+        Uri.parse('$baseUrl/Friends/coop/accept/$friendshipId'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return true;
+      }
+
+      throw _extractApiMessage(
+        response,
+        fallback: "Impossible d'accepter la proposition Co-op.",
+      );
+    } on SocketException {
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      throw "Le serveur met trop de temps à répondre 🐢.";
+    } catch (e) {
+      throw e.toString();
+    }
+  }
+
+  static Future<FriendPublicStats> getFriendPublicStats(int userId) async {
+    try {
+      final headers = await _authHeaders();
+      final response = await http.get(
+        Uri.parse('$baseUrl/Friends/profile/$userId'),
+        headers: headers,
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        return FriendPublicStats.fromJson(
+          Map<String, dynamic>.from(jsonDecode(response.body) as Map),
+        );
+      }
+
+      throw _extractApiMessage(response, fallback: "Impossible de charger le profil ami.");
+    } on SocketException {
+      throw "Pas de connexion internet 📶.";
+    } on TimeoutException {
+      throw "Le serveur met trop de temps à répondre 🐢.";
+    } catch (e) {
+      throw e.toString();
     }
   }
 }
