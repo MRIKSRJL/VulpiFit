@@ -91,6 +91,16 @@ namespace VulpiFit.API.Controllers
             return Regex.IsMatch(title, @"\b\d+\s?(g|kg|ml|l|min|minutes?|page|pages|tranches?|oeufs?|fruit|fruits)\b", RegexOptions.IgnoreCase);
         }
 
+        /// Lecture / podcast / pages : toujours Mental, jamais Sport (corrige les erreurs du LLM).
+        private static bool LooksLikeMentalActivityTitle(string title)
+        {
+            if (string.IsNullOrWhiteSpace(title)) return false;
+            var lower = title.ToLowerInvariant();
+            if (Regex.IsMatch(lower, @"\b(lire|lectures?|podcast)\b")) return true;
+            if (Regex.IsMatch(lower, @"\b\d+\s+pages?\b")) return true;
+            return false;
+        }
+
         private static bool IsNutritionTooVague(string title)
         {
             var lower = title.ToLowerInvariant();
@@ -139,6 +149,12 @@ namespace VulpiFit.API.Controllers
                 mission.Type = (mission.Type ?? string.Empty).Trim();
                 mission.Title = (mission.Title ?? string.Empty).Trim();
                 mission.Points = Math.Clamp(mission.Points, 10, 30);
+
+                if (mission.Type.Equals("Sport", StringComparison.OrdinalIgnoreCase) &&
+                    LooksLikeMentalActivityTitle(mission.Title))
+                {
+                    mission.Type = "Mental";
+                }
 
                 var replace = false;
                 if (mission.Type.Equals("Nutrition", StringComparison.OrdinalIgnoreCase))

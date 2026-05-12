@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'friend_profile_screen.dart';
 import 'models/friendship.dart';
 import 'services/mission_service.dart';
 
@@ -140,53 +139,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
   }
 
   Widget _buildCoopBadge(FriendItem friend) {
-    if (friend.coopStatus == CoopStatus.active) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        decoration: BoxDecoration(
-          color: Colors.deepOrange.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.6), width: 0.7),
+    // TODO: V1.1 - Reactiver systeme Co-op (proposer/accepter)
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.grey.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey.withValues(alpha: 0.4), width: 0.7),
+      ),
+      child: Text(
+        'Co-op indisponible (V1)',
+        style: TextStyle(
+          color: Colors.white.withValues(alpha: 0.75),
+          fontWeight: FontWeight.w600,
+          fontSize: 12,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('🔥', style: TextStyle(fontSize: 15)),
-            const SizedBox(width: 6),
-            Text(
-              '${friend.currentCoopStreak}',
-              style: const TextStyle(color: Colors.deepOrange, fontWeight: FontWeight.w800),
-            ),
-          ],
-        ),
-      );
-    }
-    if (friend.coopStatus == CoopStatus.proposed) {
-      return TextButton.icon(
-        onPressed: _busyFriendshipIds.contains(friend.friendshipId)
-            ? null
-            : () => _withFriendshipAction(
-                  friend.friendshipId,
-                  () => MissionService.acceptCoopStreak(friend.friendshipId),
-                  'Co-op activé avec ${friend.friendPseudo} !',
-                ),
-        icon: const Icon(Icons.handshake_rounded, size: 16),
-        label: const Text('Accepter Co-op'),
-      );
-    }
-    return OutlinedButton.icon(
-      onPressed: _busyFriendshipIds.contains(friend.friendshipId)
-          ? null
-          : () => _withFriendshipAction(
-                friend.friendshipId,
-                () => MissionService.proposeCoopStreak(friend.friendshipId),
-                'Proposition Co-op envoyée !',
-              ),
-      icon: const Icon(Icons.local_fire_department_rounded, size: 16),
-      label: const Text('Proposer Co-op'),
-      style: OutlinedButton.styleFrom(
-        foregroundColor: _cyan,
-        side: BorderSide(color: _cyan.withValues(alpha: 0.6), width: 0.6),
       ),
     );
   }
@@ -215,14 +182,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
               side: BorderSide(color: _cyan.withValues(alpha: 0.35), width: 0.5),
             ),
             child: ListTile(
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => FriendProfileScreen(
-                    friendUserId: f.friendUserId,
-                    fallbackPseudo: f.friendPseudo,
-                  ),
-                ),
-              ),
+              onTap: null, // TODO: V1.1 - Reactiver profil detaille ami
               leading: CircleAvatar(
                 backgroundColor: _magenta.withValues(alpha: 0.2),
                 child: Text(

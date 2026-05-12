@@ -140,7 +140,8 @@ class _SportScreenState extends State<SportScreen> {
   void _toggleMission(Mission mission) {
     final wasDone = mission.isCompleted;
     if (!wasDone) {
-      _showPerformanceDialog(mission);
+      // TODO: V1.1 - Reactiver saisie performance (poids/reps)
+      _processMissionValidation(mission);
     } else {
       _processMissionValidation(mission);
     }

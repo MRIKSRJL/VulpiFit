@@ -29,11 +29,13 @@ class Mission {
     );
   }
 
-  /// Filtre tolérant (casse + sous-chaîne dans le titre si besoin).
+  /// Filtre par pilier : uniquement le champ [type] renvoyé par l'API.
+  ///
+  /// Un fallback sur le titre était trompeur (ex. mission Mental « …livre …
+  /// sport » classée à tort dans Sport parce que le titre contenait « sport »).
   bool matchesCategory(String keyword) {
     final k = keyword.toLowerCase().trim();
-    final t = type.toLowerCase();
-    if (t.contains(k)) return true;
-    return title.toLowerCase().contains(k);
+    final t = type.toLowerCase().trim();
+    return t == k;
   }
 }

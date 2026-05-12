@@ -117,7 +117,7 @@ namespace VulpiFit.API.Services
                 }
                 : new List<string>
                 {
-                    "Lire 6 pages d'un livre utile (santé, discipline, sport)",
+                    "Lire 6 pages d'un livre utile (santé ou discipline personnelle)",
                     "Ecouter 12 minutes d'un podcast bien-être et noter 1 action concrète",
                     "Faire 3 minutes de respiration profonde (inspire 4s, expire 6s)"
                 };
@@ -178,6 +178,7 @@ INCLUS OBLIGATOIREMENT la charge et les répétitions dans le titre (ex: 'Dével
 3. MENTAL : Génère 1 ou 2 missions de 'Mental' en priorisant lecture/podcast.
    OBLIGATOIRE : mission Mental = action concrète + durée/pages + mini livrable (ex: noter 1 idée).
    La respiration/méditation courte reste autorisée mais en complément, pas comme unique format quotidien.
+   RÈGLE DE TYPE : toute mission lecture, pages de livre, podcast ou audio → Type ""Mental"" uniquement, jamais ""Sport"" (même si le livre parle de sport).
 4. INTERDIT : formulations vagues de type 'manger équilibré', 'faire de la gratitude 1 minute', 'manger un fruit' sans détail.";
 
             if (!string.IsNullOrEmpty(user.LastFeedback))

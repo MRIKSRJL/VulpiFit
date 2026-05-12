@@ -8,7 +8,21 @@ import 'dart:io';    // 🛡️ Pour détecter les coupures réseau (SocketExcep
 import 'dart:async'; // ⏱️ Pour gérer le chronomètre (TimeoutException)
 
 class MissionService {
-  static const String baseUrl = "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api";
+  static const String _azureBaseUrl =
+      "https://fitnessfoxapi20260301200033-agegbhcpfqdvhaep.canadacentral-01.azurewebsites.net/api";
+      
+  // Mettre à false seulement pour déboguer l'API sur ton PC (LAN + dotnet run local).
+  static const bool _useAzureInDebug = true;
+
+  // IP du PC (Wi-Fi) — mettre à jour via ipconfig si besoin.
+  static const String _localLanBaseUrl = "http://10.25.2.71:5045/api";
+
+  static String get baseUrl {
+    if (!kDebugMode || _useAzureInDebug) {
+      return _azureBaseUrl;
+    }
+    return _localLanBaseUrl;
+  }
 
   /// Incrémenté après succès API qui impacte la roadmap (missions, bilan).
   static final ValueNotifier<int> roadmapRefreshTick = ValueNotifier<int>(0);
@@ -212,7 +226,10 @@ class MissionService {
         _notifyRoadmapRefresh();
         return true;
       } else {
-        throw "Erreur serveur : ${response.statusCode}";
+        throw _extractApiMessage(
+          response,
+          fallback: "Erreur serveur : ${response.statusCode}",
+        );
       }
     } on SocketException {
       throw "Pas de connexion internet 📶. Impossible de valider.";

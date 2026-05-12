@@ -123,15 +123,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
         elevation: 0,
         title: const Text('VulpiFit', style: TextStyle(fontWeight: FontWeight.bold)),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.trending_up, size: 30),
-            tooltip: 'Ma Roadmap',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProgressScreen()),
-              );
-            },
+          Visibility(
+            visible: false, // TODO: V1.1 - Reactiver Roadmap/Analytics
+            child: IconButton(
+              icon: const Icon(Icons.trending_up, size: 30),
+              tooltip: 'Ma Roadmap',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ProgressScreen()),
+                );
+              },
+            ),
           ),
           IconButton(
             icon: const Icon(Icons.groups_rounded, size: 28),
@@ -222,12 +225,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showFeedbackDialog,
-        label: const Text('Bilan du jour'),
-        icon: const Icon(Icons.psychology_alt),
-        backgroundColor: Theme.of(context).colorScheme.primary,
-        foregroundColor: Theme.of(context).colorScheme.onPrimary,
+      floatingActionButton: Visibility(
+        visible: false, // TODO: V1.1 - Reactiver Bilan du jour
+        child: FloatingActionButton.extended(
+          onPressed: _showFeedbackDialog,
+          label: const Text('Bilan du jour'),
+          icon: const Icon(Icons.psychology_alt),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+        ),
       ),
     );
   }
