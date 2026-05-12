@@ -10,8 +10,6 @@ namespace VulpiFit.API.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            return; // On retourne immédiatement pour éviter de créer la table "Users" qui existe déjà dans la base de
-
             migrationBuilder.CreateTable(
                 name: "Users",
                 columns: table => new
@@ -20,7 +18,11 @@ namespace VulpiFit.API.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Pseudo = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Score = table.Column<int>(type: "int", nullable: false),
-                    TotalMissionsCompleted = table.Column<int>(type: "int", nullable: false)
+                    TotalMissionsCompleted = table.Column<int>(type: "int", nullable: false),
+                    Weight = table.Column<float>(type: "real", nullable: true),
+                    Height = table.Column<int>(type: "int", nullable: true),
+                    Injuries = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Goals = table.Column<string>(type: "nvarchar(max)", nullable: true)
                 },
                 constraints: table =>
                 {

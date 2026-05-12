@@ -28,29 +28,36 @@ namespace VulpiFit.API.Controllers
         [HttpGet("search")]
         public async Task<IActionResult> SearchUsers([FromQuery] string pseudo)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
-
-            var query = (pseudo ?? string.Empty).Trim();
-            if (query.Length < 2)
+            try
             {
-                return BadRequest("Le pseudo doit contenir au moins 2 caractères.");
-            }
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
 
-            var users = await _context.Users
-                .Where(u => u.Id != currentUserId.Value && u.Pseudo.Contains(query))
-                .OrderBy(u => u.Pseudo)
-                .Take(20)
-                .Select(u => new
+                var query = (pseudo ?? string.Empty).Trim();
+                if (query.Length < 2)
                 {
-                    u.Id,
-                    u.Pseudo,
-                    u.Score,
-                    u.CurrentStreak
-                })
-                .ToListAsync();
+                    return BadRequest("Le pseudo doit contenir au moins 2 caractères.");
+                }
 
-            return Ok(users);
+                var users = await _context.Users
+                    .Where(u => u.Id != currentUserId.Value && u.Pseudo.Contains(query))
+                    .OrderBy(u => u.Pseudo)
+                    .Take(20)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.Pseudo,
+                        u.Score,
+                        u.CurrentStreak
+                    })
+                    .ToListAsync();
+
+                return Ok(users);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         [HttpPost("request/{receiverId:int}")]
@@ -95,162 +102,204 @@ namespace VulpiFit.API.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, ex.InnerException?.Message ?? ex.Message);
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
             }
         }
 
         [HttpPut("accept/{friendshipId:int}")]
         public async Task<IActionResult> AcceptFriendRequest(int friendshipId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
 
-            var friendship = await _context.Friendships.FindAsync(friendshipId);
-            if (friendship == null) return NotFound("Demande introuvable.");
-            if (friendship.ReceiverId != currentUserId.Value) return Forbid();
-            if (friendship.Status != FriendshipStatus.Pending) return BadRequest("Cette demande n'est plus en attente.");
+                var friendship = await _context.Friendships.FindAsync(friendshipId);
+                if (friendship == null) return NotFound("Demande introuvable.");
+                if (friendship.ReceiverId != currentUserId.Value) return Forbid();
+                if (friendship.Status != FriendshipStatus.Pending) return BadRequest("Cette demande n'est plus en attente.");
 
-            friendship.Status = FriendshipStatus.Accepted;
-            await _context.SaveChangesAsync();
-            return Ok(friendship);
+                friendship.Status = FriendshipStatus.Accepted;
+                await _context.SaveChangesAsync();
+                return Ok(friendship);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         [HttpPut("reject/{friendshipId:int}")]
         public async Task<IActionResult> RejectFriendRequest(int friendshipId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
 
-            var friendship = await _context.Friendships.FindAsync(friendshipId);
-            if (friendship == null) return NotFound("Demande introuvable.");
-            if (friendship.ReceiverId != currentUserId.Value) return Forbid();
-            if (friendship.Status != FriendshipStatus.Pending) return BadRequest("Cette demande n'est plus en attente.");
+                var friendship = await _context.Friendships.FindAsync(friendshipId);
+                if (friendship == null) return NotFound("Demande introuvable.");
+                if (friendship.ReceiverId != currentUserId.Value) return Forbid();
+                if (friendship.Status != FriendshipStatus.Pending) return BadRequest("Cette demande n'est plus en attente.");
 
-            friendship.Status = FriendshipStatus.Rejected;
-            friendship.CoopStreakStatus = CoopStreakStatus.None;
-            friendship.CurrentCoopStreak = 0;
-            friendship.LastCoopMaintenanceDate = null;
-            await _context.SaveChangesAsync();
-            return Ok(friendship);
+                friendship.Status = FriendshipStatus.Rejected;
+                friendship.CoopStreakStatus = CoopStreakStatus.None;
+                friendship.CurrentCoopStreak = 0;
+                friendship.LastCoopMaintenanceDate = null;
+                await _context.SaveChangesAsync();
+                return Ok(friendship);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         [HttpGet("my-friends")]
         public async Task<IActionResult> MyFriends()
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
-
-            var accepted = await _context.Friendships
-                .Where(f => f.Status == FriendshipStatus.Accepted &&
-                            (f.RequesterId == currentUserId.Value || f.ReceiverId == currentUserId.Value))
-                .Select(f => new
-                {
-                    f.Id,
-                    FriendId = f.RequesterId == currentUserId.Value ? f.ReceiverId : f.RequesterId,
-                    FriendPseudo = f.RequesterId == currentUserId.Value ? f.Receiver.Pseudo : f.Requester.Pseudo,
-                    f.CoopStreakStatus,
-                    f.CurrentCoopStreak,
-                    f.LastCoopMaintenanceDate
-                })
-                .ToListAsync();
-
-            var pendingReceived = await _context.Friendships
-                .Where(f => f.Status == FriendshipStatus.Pending && f.ReceiverId == currentUserId.Value)
-                .Select(f => new
-                {
-                    f.Id,
-                    FromUserId = f.RequesterId,
-                    FromPseudo = f.Requester.Pseudo
-                })
-                .ToListAsync();
-
-            var pendingSent = await _context.Friendships
-                .Where(f => f.Status == FriendshipStatus.Pending && f.RequesterId == currentUserId.Value)
-                .Select(f => new
-                {
-                    f.Id,
-                    ToUserId = f.ReceiverId,
-                    ToPseudo = f.Receiver.Pseudo
-                })
-                .ToListAsync();
-
-            return Ok(new
+            try
             {
-                acceptedFriends = accepted,
-                pendingReceived,
-                pendingSent
-            });
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
+
+                var accepted = await _context.Friendships
+                    .Where(f => f.Status == FriendshipStatus.Accepted &&
+                                (f.RequesterId == currentUserId.Value || f.ReceiverId == currentUserId.Value))
+                    .Select(f => new
+                    {
+                        f.Id,
+                        FriendId = f.RequesterId == currentUserId.Value ? f.ReceiverId : f.RequesterId,
+                        FriendPseudo = f.RequesterId == currentUserId.Value ? f.Receiver.Pseudo : f.Requester.Pseudo,
+                        f.CoopStreakStatus,
+                        f.CurrentCoopStreak,
+                        f.LastCoopMaintenanceDate
+                    })
+                    .ToListAsync();
+
+                var pendingReceived = await _context.Friendships
+                    .Where(f => f.Status == FriendshipStatus.Pending && f.ReceiverId == currentUserId.Value)
+                    .Select(f => new
+                    {
+                        f.Id,
+                        FromUserId = f.RequesterId,
+                        FromPseudo = f.Requester.Pseudo
+                    })
+                    .ToListAsync();
+
+                var pendingSent = await _context.Friendships
+                    .Where(f => f.Status == FriendshipStatus.Pending && f.RequesterId == currentUserId.Value)
+                    .Select(f => new
+                    {
+                        f.Id,
+                        ToUserId = f.ReceiverId,
+                        ToPseudo = f.Receiver.Pseudo
+                    })
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    acceptedFriends = accepted,
+                    pendingReceived,
+                    pendingSent
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         [HttpGet("profile/{friendUserId:int}")]
         public async Task<IActionResult> GetFriendProfile(int friendUserId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
 
-            var isAcceptedFriend = await _context.Friendships.AnyAsync(f =>
-                f.Status == FriendshipStatus.Accepted &&
-                ((f.RequesterId == currentUserId.Value && f.ReceiverId == friendUserId) ||
-                 (f.ReceiverId == currentUserId.Value && f.RequesterId == friendUserId)));
+                var isAcceptedFriend = await _context.Friendships.AnyAsync(f =>
+                    f.Status == FriendshipStatus.Accepted &&
+                    ((f.RequesterId == currentUserId.Value && f.ReceiverId == friendUserId) ||
+                     (f.ReceiverId == currentUserId.Value && f.RequesterId == friendUserId)));
 
-            if (!isAcceptedFriend)
-                return StatusCode(403, "Profil accessible uniquement pour des amis acceptés.");
+                if (!isAcceptedFriend)
+                    return StatusCode(403, "Profil accessible uniquement pour des amis acceptés.");
 
-            var friend = await _context.Users
-                .Where(u => u.Id == friendUserId)
-                .Select(u => new
-                {
-                    u.Id,
-                    u.Pseudo,
-                    u.Score,
-                    u.CurrentStreak,
-                    u.TotalMissionsCompleted
-                })
-                .FirstOrDefaultAsync();
+                var friend = await _context.Users
+                    .Where(u => u.Id == friendUserId)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.Pseudo,
+                        u.Score,
+                        u.CurrentStreak,
+                        u.TotalMissionsCompleted
+                    })
+                    .FirstOrDefaultAsync();
 
-            if (friend == null) return NotFound("Ami introuvable.");
+                if (friend == null) return NotFound("Ami introuvable.");
 
-            return Ok(friend);
+                return Ok(friend);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         [HttpPost("coop/propose/{friendshipId:int}")]
         public async Task<IActionResult> ProposeCoop(int friendshipId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
 
-            var friendship = await _context.Friendships.FindAsync(friendshipId);
-            if (friendship == null) return NotFound("Amitié introuvable.");
-            if (friendship.Status != FriendshipStatus.Accepted) return BadRequest("Amitié non acceptée.");
-            if (friendship.RequesterId != currentUserId.Value && friendship.ReceiverId != currentUserId.Value)
-                return Forbid();
+                var friendship = await _context.Friendships.FindAsync(friendshipId);
+                if (friendship == null) return NotFound("Amitié introuvable.");
+                if (friendship.Status != FriendshipStatus.Accepted) return BadRequest("Amitié non acceptée.");
+                if (friendship.RequesterId != currentUserId.Value && friendship.ReceiverId != currentUserId.Value)
+                    return Forbid();
 
-            friendship.CoopStreakStatus = CoopStreakStatus.Proposed;
-            friendship.CurrentCoopStreak = 0;
-            friendship.LastCoopMaintenanceDate = null;
-            await _context.SaveChangesAsync();
-            return Ok(friendship);
+                friendship.CoopStreakStatus = CoopStreakStatus.Proposed;
+                friendship.CurrentCoopStreak = 0;
+                friendship.LastCoopMaintenanceDate = null;
+                await _context.SaveChangesAsync();
+                return Ok(friendship);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         [HttpPut("coop/accept/{friendshipId:int}")]
         public async Task<IActionResult> AcceptCoop(int friendshipId)
         {
-            var currentUserId = GetCurrentUserId();
-            if (currentUserId == null) return Unauthorized();
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                if (currentUserId == null) return Unauthorized();
 
-            var friendship = await _context.Friendships.FindAsync(friendshipId);
-            if (friendship == null) return NotFound("Amitié introuvable.");
-            if (friendship.Status != FriendshipStatus.Accepted) return BadRequest("Amitié non acceptée.");
-            if (friendship.RequesterId != currentUserId.Value && friendship.ReceiverId != currentUserId.Value)
-                return Forbid();
-            if (friendship.CoopStreakStatus != CoopStreakStatus.Proposed)
-                return BadRequest("Aucune proposition Co-op en attente.");
+                var friendship = await _context.Friendships.FindAsync(friendshipId);
+                if (friendship == null) return NotFound("Amitié introuvable.");
+                if (friendship.Status != FriendshipStatus.Accepted) return BadRequest("Amitié non acceptée.");
+                if (friendship.RequesterId != currentUserId.Value && friendship.ReceiverId != currentUserId.Value)
+                    return Forbid();
+                if (friendship.CoopStreakStatus != CoopStreakStatus.Proposed)
+                    return BadRequest("Aucune proposition Co-op en attente.");
 
-            friendship.CoopStreakStatus = CoopStreakStatus.Active;
-            friendship.CurrentCoopStreak = 0;
-            friendship.LastCoopMaintenanceDate = null;
-            await _context.SaveChangesAsync();
-            return Ok(friendship);
+                friendship.CoopStreakStatus = CoopStreakStatus.Active;
+                friendship.CurrentCoopStreak = 0;
+                friendship.LastCoopMaintenanceDate = null;
+                await _context.SaveChangesAsync();
+                return Ok(friendship);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
     }
 }

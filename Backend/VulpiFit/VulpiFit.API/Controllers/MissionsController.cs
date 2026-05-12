@@ -5,6 +5,7 @@ using VulpiFit.API.Models;
 using VulpiFit.API.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Text.RegularExpressions;
 
 namespace VulpiFit.API.Controllers
 {
@@ -16,15 +17,21 @@ namespace VulpiFit.API.Controllers
         private readonly ApplicationDbContext _context;
         private readonly GroqService _groqService;
         private readonly CoopStreakService _coopStreakService;
+        private readonly IConfiguration _configuration;
+        private readonly IWebHostEnvironment _environment;
 
         public MissionsController(
             ApplicationDbContext context,
             GroqService groqService,
-            CoopStreakService coopStreakService)
+            CoopStreakService coopStreakService,
+            IConfiguration configuration,
+            IWebHostEnvironment environment)
         {
             _context = context;
             _groqService = groqService;
             _coopStreakService = coopStreakService;
+            _configuration = configuration;
+            _environment = environment;
         }
 
         /// <summary>
@@ -79,6 +86,131 @@ namespace VulpiFit.API.Controllers
             user.LastActivityDate = nowUtc;
         }
 
+        private static bool HasQuantity(string title)
+        {
+            return Regex.IsMatch(title, @"\b\d+\s?(g|kg|ml|l|min|minutes?|page|pages|tranches?|oeufs?|fruit|fruits)\b", RegexOptions.IgnoreCase);
+        }
+
+        private static bool IsNutritionTooVague(string title)
+        {
+            var lower = title.ToLowerInvariant();
+            return lower.Contains("manger équilibr") ||
+                   lower.Contains("petit-déjeuner équilibr") ||
+                   lower.Contains("manger un fruit") ||
+                   lower.Contains("boire de l'eau") ||
+                   lower.Contains("boire au moins 1l d'eau") ||
+                   lower.Contains("boire 2l d'eau");
+        }
+
+        private static bool IsMentalTooVague(string title)
+        {
+            var lower = title.ToLowerInvariant();
+            return lower.Contains("gratitude 1 minute") ||
+                   lower == "respirer" ||
+                   lower.Contains("se détendre") ||
+                   lower.Contains("penser positif");
+        }
+
+        private static int ComputeQualityScore(Mission mission)
+        {
+            var score = 0;
+            var title = mission.Title ?? string.Empty;
+            if (title.Length >= 25) score += 1;
+            if (HasQuantity(title)) score += 2;
+            if (title.Contains(":")) score += 1;
+            if (mission.Type == "Mental" && (title.ToLowerInvariant().Contains("lire") || title.ToLowerInvariant().Contains("podcast"))) score += 1;
+            return score;
+        }
+
+        private List<Mission> ImproveMissionQuality(User user, List<Mission> missions)
+        {
+            var improved = new List<Mission>();
+            var fallbackPool = _groqService.BuildQualityFallbackMissions(user);
+            var fallbackNutrition = fallbackPool.Where(m => m.Type == "Nutrition").ToList();
+            var fallbackMental = fallbackPool.Where(m => m.Type == "Mental").ToList();
+            var fallbackSport = fallbackPool.FirstOrDefault(m => m.Type == "Sport");
+
+            var nutritionIdx = 0;
+            var mentalIdx = 0;
+
+            foreach (var mission in missions)
+            {
+                if (mission == null) continue;
+                mission.Type = (mission.Type ?? string.Empty).Trim();
+                mission.Title = (mission.Title ?? string.Empty).Trim();
+                mission.Points = Math.Clamp(mission.Points, 10, 30);
+
+                var replace = false;
+                if (mission.Type.Equals("Nutrition", StringComparison.OrdinalIgnoreCase))
+                {
+                    replace = !HasQuantity(mission.Title) || IsNutritionTooVague(mission.Title);
+                    if (replace && nutritionIdx < fallbackNutrition.Count)
+                    {
+                        mission.Title = fallbackNutrition[nutritionIdx++].Title;
+                    }
+                }
+                else if (mission.Type.Equals("Mental", StringComparison.OrdinalIgnoreCase))
+                {
+                    replace = (!HasQuantity(mission.Title) && !mission.Title.ToLowerInvariant().Contains("lire") && !mission.Title.ToLowerInvariant().Contains("podcast"))
+                              || IsMentalTooVague(mission.Title);
+                    if (replace && mentalIdx < fallbackMental.Count)
+                    {
+                        mission.Title = fallbackMental[mentalIdx++].Title;
+                    }
+                }
+                else if (mission.Type.Equals("Sport", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (string.IsNullOrWhiteSpace(mission.Title) && fallbackSport != null)
+                    {
+                        mission.Title = fallbackSport.Title;
+                    }
+                }
+                else
+                {
+                    // Type inconnu: ignorer pour garder uniquement Sport/Nutrition/Mental.
+                    continue;
+                }
+
+                improved.Add(mission);
+            }
+
+            // Garantit présence de Mental et Nutrition même si la génération est partielle.
+            if (!improved.Any(m => m.Type.Equals("Nutrition", StringComparison.OrdinalIgnoreCase)))
+            {
+                improved.AddRange(fallbackNutrition.Take(2));
+            }
+            if (!improved.Any(m => m.Type.Equals("Mental", StringComparison.OrdinalIgnoreCase)))
+            {
+                improved.Add(fallbackMental.First());
+            }
+
+            return improved.Take(8).ToList();
+        }
+
+        private static void CalibratePointsByProfile(User user, List<Mission> missions)
+        {
+            var goals = (user.Goals ?? string.Empty).ToLowerInvariant();
+            var streak = user.CurrentStreak;
+            foreach (var mission in missions)
+            {
+                var points = mission.Points;
+                if (streak >= 10) points += 2;
+                if (streak == 0) points -= 2;
+
+                if (mission.Type == "Sport" && (goals.Contains("perte") || goals.Contains("gras")))
+                {
+                    points += 1;
+                }
+
+                if (mission.Type == "Nutrition" && goals.Contains("muscle"))
+                {
+                    points += 1;
+                }
+
+                mission.Points = Math.Clamp(points, 10, 30);
+            }
+        }
+
         // GET: api/Missions
         [HttpGet("{userId}")]
         public async Task<ActionResult<IEnumerable<Mission>>> GetMissionsForUser(int userId)
@@ -115,19 +247,39 @@ namespace VulpiFit.API.Controllers
                 .Take(15)
                 .ToListAsync();
 
-            //  On passe l'historique à notre GroqService
-            var newMissions = await _groqService.GenerateDailyMissionsAsync(user, recentLogs);
+            List<Mission> newMissions;
+            string? groqError = null;
+            try
+            {
+                //  On passe l'historique à notre GroqService
+                newMissions = await _groqService.GenerateDailyMissionsAsync(user, recentLogs);
+            }
+            catch (Exception ex)
+            {
+                groqError = ex.Message;
+                newMissions = new List<Mission>();
+            }
+
+            var useFallback = _configuration.GetValue<bool?>("Groq:UseFallbackMissions")
+                ?? !_environment.IsDevelopment();
 
             // Plan de secours : Si Groq a un bug réseau
             if (newMissions == null || !newMissions.Any())
             {
-                Console.WriteLine("⚠️ Échec IA : Utilisation des missions de secours.");
-                newMissions = new List<Mission>
+                if (!useFallback)
                 {
-                    new Mission { Title = "Boire 2L d'eau aujourd'hui", Type = "Nutrition", Points = 10 },
-                    new Mission { Title = "Faire 15 minutes de marche active", Type = "Sport", Points = 15 },
-                    new Mission { Title = "Faire 3 minutes de respiration profonde", Type = "Mental", Points = 10 }
-                };
+                    return StatusCode(502, $"Groq generation failed: {groqError ?? "unknown error"}");
+                }
+
+                Console.WriteLine("⚠️ Échec IA : Utilisation des missions de secours.");
+                newMissions = _groqService.BuildQualityFallbackMissions(user);
+            }
+
+            newMissions = ImproveMissionQuality(user, newMissions);
+            CalibratePointsByProfile(user, newMissions);
+            foreach (var m in newMissions)
+            {
+                Console.WriteLine($"[MissionQuality] Type={m.Type} Score={ComputeQualityScore(m)} Title={m.Title}");
             }
 
             // 3. SAUVEGARDE 
@@ -147,38 +299,45 @@ namespace VulpiFit.API.Controllers
         [HttpPost("Complete/{id}")]
         public async Task<IActionResult> CompleteMission(int id, [FromQuery] int userId)
         {
-            // Vérification de sécurité
-            var authenticatedUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (authenticatedUserId != userId.ToString())
+            try
             {
-                return Forbid();
-            }
-
-            var mission = await _context.Missions.FindAsync(id);
-            if (mission == null || mission.UserId != userId) return NotFound();
-
-            // On vérifie que la mission n'est pas déjà complétée
-            if (!mission.IsCompleted)
-            {
-                mission.IsCompleted = true;
-
-                var user = await _context.Users.FindAsync(userId);
-                if (user != null)
+                // Vérification de sécurité
+                var authenticatedUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (authenticatedUserId != userId.ToString())
                 {
-                    // 1. On ajoute les points
-                    user.Score += mission.Points;
-                    user.TotalMissionsCompleted += 1;
-
-                    // 2. Streak : jours calendaires **locaux** (minuit / 00h01 inclus)
-                    var nowUtc = DateTime.UtcNow;
-                    UpdateStreakForCompletion(user, nowUtc);
+                    return Forbid();
                 }
 
-                await _context.SaveChangesAsync();
-                await _coopStreakService.UpdateCoopStreakAsync(userId);
-            }
+                var mission = await _context.Missions.FindAsync(id);
+                if (mission == null || mission.UserId != userId) return NotFound();
 
-            return Ok(mission);
+                // On vérifie que la mission n'est pas déjà complétée
+                if (!mission.IsCompleted)
+                {
+                    mission.IsCompleted = true;
+
+                    var user = await _context.Users.FindAsync(userId);
+                    if (user != null)
+                    {
+                        // 1. On ajoute les points
+                        user.Score += mission.Points;
+                        user.TotalMissionsCompleted += 1;
+
+                        // 2. Streak : jours calendaires **locaux** (minuit / 00h01 inclus)
+                        var nowUtc = DateTime.UtcNow;
+                        UpdateStreakForCompletion(user, nowUtc);
+                    }
+
+                    await _context.SaveChangesAsync();
+                    await _coopStreakService.UpdateCoopStreakAsync(userId);
+                }
+
+                return Ok(mission);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"{ex.Message} | {ex.InnerException?.Message}");
+            }
         }
 
         // POST: api/Missions/Undo

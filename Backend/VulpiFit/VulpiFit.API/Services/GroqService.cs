@@ -8,11 +8,20 @@ namespace VulpiFit.API.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
+        private readonly bool _isDevelopment;
 
         public GroqService(HttpClient httpClient, IConfiguration config)
         {
             _httpClient = httpClient;
-            _apiKey = config["GroqApiKey"] ?? string.Empty;
+            _apiKey = (config["Groq:ApiKey"] ?? config["GroqApiKey"] ?? string.Empty).Trim();
+            _isDevelopment = string.Equals(config["ASPNETCORE_ENVIRONMENT"], "Development", StringComparison.OrdinalIgnoreCase);
+
+            var source = !string.IsNullOrWhiteSpace(config["Groq:ApiKey"])
+                ? "Groq:ApiKey"
+                : !string.IsNullOrWhiteSpace(config["GroqApiKey"])
+                    ? "GroqApiKey (legacy)"
+                    : "missing";
+            Console.WriteLine($"[Groq] Key source={source}, keyPresent={!string.IsNullOrEmpty(_apiKey)}, env={(_isDevelopment ? "Development" : "NonDevelopment")}");
         }
 
         private static string BuildStreakBlock(int streak)
@@ -53,6 +62,76 @@ namespace VulpiFit.API.Services
 - Garde cependant 1 à 2 missions ""faciles / plaisir"" pour éviter le burn-out psychologique.";
         }
 
+        private static string BuildGoalProfileBlock(string goals)
+        {
+            var lowerGoals = goals.ToLowerInvariant();
+            if (lowerGoals.Contains("perte") || lowerGoals.Contains("gras") || lowerGoals.Contains("poids"))
+            {
+                return @"PROFIL OBJECTIF PERTE DE POIDS :
+- Priorise la satiété, la densité nutritionnelle et le déficit calorique modéré.
+- Nutrition : donne des quantités claires (ex: 200g skyr, 40g flocons d'avoine, 1 pomme moyenne).
+- Sport : favorise volume modéré + cardio progressif.
+- Mental : focus constance (lecture/podcast utile + respiration courte anti-compulsion).";
+            }
+
+            if (lowerGoals.Contains("muscle") || lowerGoals.Contains("force") || lowerGoals.Contains("prise de masse"))
+            {
+                return @"PROFIL OBJECTIF PERFORMANCE / MASSE :
+- Priorise protéines, récupération et surcharge progressive.
+- Nutrition : donne des portions riches en protéines avec quantités (g/ml) et alternatives.
+- Sport : exercices structurés avec volume/charges explicites.
+- Mental : focus discipline et concentration (lecture active/podcast de performance).";
+            }
+
+            return @"PROFIL OBJECTIF FORME GÉNÉRALE :
+- Cherche l'équilibre : mission faisable, claire et utile dès aujourd'hui.
+- Nutrition : portions concrètes + aliments simples à trouver.
+- Mental : alternance lecture/podcast + respiration/méditation courte.";
+        }
+
+        public List<Mission> BuildQualityFallbackMissions(User user)
+        {
+            var goals = (user.Goals ?? "forme générale").ToLowerInvariant();
+            var streak = user.CurrentStreak;
+
+            var nutrition = goals.Contains("perte") || goals.Contains("gras") || goals.Contains("poids")
+                ? new List<string>
+                {
+                    "Petit-déjeuner: 200g de skyr + 40g de flocons d'avoine + 1 pomme (150g)",
+                    "Déjeuner: 150g poulet + 200g légumes verts + 120g riz cuit",
+                    "Collation: 1 banane (120g) + 20g d'amandes"
+                }
+                : new List<string>
+                {
+                    "Petit-déjeuner: 3 oeufs + 2 tranches pain complet (80g) + 1 orange",
+                    "Déjeuner: 180g poisson + 200g patate douce + 150g légumes",
+                    "Collation: 250ml lait + 30g flocons d'avoine + 1 banane"
+                };
+
+            var mental = streak >= 5
+                ? new List<string>
+                {
+                    "Lire 10 pages d'un livre de progression personnelle et noter 1 idée",
+                    "Ecouter 20 minutes d'un podcast santé/discipline puis écrire 3 points clés",
+                    "Faire 5 minutes de respiration lente (cohérence cardiaque) avant le coucher"
+                }
+                : new List<string>
+                {
+                    "Lire 6 pages d'un livre utile (santé, discipline, sport)",
+                    "Ecouter 12 minutes d'un podcast bien-être et noter 1 action concrète",
+                    "Faire 3 minutes de respiration profonde (inspire 4s, expire 6s)"
+                };
+
+            return new List<Mission>
+            {
+                new Mission { Title = "Sport: 20 minutes de marche active + 2 séries de 12 squats poids du corps", Type = "Sport", Points = 15 },
+                new Mission { Title = nutrition[0], Type = "Nutrition", Points = 15 },
+                new Mission { Title = nutrition[1], Type = "Nutrition", Points = 20 },
+                new Mission { Title = mental[0], Type = "Mental", Points = 15 },
+                new Mission { Title = mental[1], Type = "Mental", Points = 15 }
+            };
+        }
+
         /// Construit le prompt complet envoyé à Groq (utilisé aussi par l'endpoint de debug).
         public string BuildDailyMissionPrompt(User user, List<ExerciseLog> exerciseHistory)
         {
@@ -70,6 +149,7 @@ namespace VulpiFit.API.Services
             var streak = user.CurrentStreak;
 
             var streakBlock = BuildStreakBlock(streak);
+            var goalProfileBlock = BuildGoalProfileBlock(goals);
 
             var prompt = $@"Tu es VulpiFit, un coach sportif et nutritionnel virtuel expert.
 Aujourd'hui, tu dois générer un programme complet pour cet utilisateur sous forme de multiples missions :
@@ -82,6 +162,9 @@ Aujourd'hui, tu dois générer un programme complet pour cet utilisateur sous fo
 INSTRUCTIONS STREAK (SURCHARGE PROGRESSIVE & PSYCHOLOGIQUE) :
 {streakBlock}
 
+INSTRUCTIONS OBJECTIF UTILISATEUR :
+{goalProfileBlock}
+
 HISTORIQUE DES PERFORMANCES RÉCENTES (Pour la surcharge progressive) :
 {historyText}
 
@@ -89,8 +172,13 @@ CONSIGNES DE GÉNÉRATION :
 1. SPORT : Crée une séance de sport logique (ex: Séance Push, Tirage, ou Jambes). 
 TRÈS IMPORTANT : Analyse l'historique ci-dessus. Si tu proposes un exercice déjà réalisé, applique le principe de surcharge progressive (augmente la charge de 1 à 2.5kg, ou ajoute 1 à 2 répétitions). 
 INCLUS OBLIGATOIREMENT la charge et les répétitions dans le titre (ex: 'Développé couché - 4 séries de 10 à 62.5kg'). Si c'est un nouvel exercice, propose une charge et des répétitions cohérentes avec son profil. Génère 3 à 5 missions de 'Sport'.
-2. NUTRITION : Génère 2 à 4 missions de 'Nutrition' réparties sur la journée (ex: Petit-déjeuner, Déjeuner, Dîner, Collation) adaptées à ses objectifs spécifiques.
-3. MENTAL : Génère 1 ou 2 missions de 'Mental' (ex: Méditation, lecture, étirements relaxants).";
+2. NUTRITION : Génère 2 à 4 missions de 'Nutrition' réparties sur la journée (Petit-déjeuner, Déjeuner, Dîner, Collation).
+   OBLIGATOIRE : chaque mission Nutrition doit inclure au moins 1 quantité explicite (g/ml/unité) + un aliment précis + un contexte repas.
+   Exemple valide : 'Petit-déjeuner: 200g skyr + 40g flocons d'avoine + 1 banane (120g)'.
+3. MENTAL : Génère 1 ou 2 missions de 'Mental' en priorisant lecture/podcast.
+   OBLIGATOIRE : mission Mental = action concrète + durée/pages + mini livrable (ex: noter 1 idée).
+   La respiration/méditation courte reste autorisée mais en complément, pas comme unique format quotidien.
+4. INTERDIT : formulations vagues de type 'manger équilibré', 'faire de la gratitude 1 minute', 'manger un fruit' sans détail.";
 
             if (!string.IsNullOrEmpty(user.LastFeedback))
             {
@@ -110,8 +198,8 @@ Exemple de format attendu :
 [
   { ""Title"": ""Développé couché - 4 séries de 10 à 60kg"", ""Type"": ""Sport"", ""Points"": 20 },
   { ""Title"": ""Élévations latérales - 3 séries de 15 à 12kg"", ""Type"": ""Sport"", ""Points"": 15 },
-  { ""Title"": ""Petit-déjeuner riche en protéines"", ""Type"": ""Nutrition"", ""Points"": 15 },
-  { ""Title"": ""10 minutes de cohérence cardiaque"", ""Type"": ""Mental"", ""Points"": 15 }
+  { ""Title"": ""Petit-déjeuner: 200g skyr + 40g flocons d'avoine + 1 pomme (150g)"", ""Type"": ""Nutrition"", ""Points"": 15 },
+  { ""Title"": ""Lire 10 pages d'un livre et noter 1 idée utile"", ""Type"": ""Mental"", ""Points"": 15 }
 ]";
 
             return prompt;
@@ -122,8 +210,7 @@ Exemple de format attendu :
         {
             if (string.IsNullOrEmpty(_apiKey) || _apiKey == "TA_CLE_GROQ_GSK_ICI")
             {
-                Console.WriteLine("🛑 ERREUR CRITIQUE : La clé API Groq est introuvable !");
-                return new List<Mission>();
+                throw new InvalidOperationException("Groq API key missing or placeholder.");
             }
 
             var prompt = BuildDailyMissionPrompt(user, exerciseHistory);
@@ -149,8 +236,7 @@ Exemple de format attendu :
                 if (!response.IsSuccessStatusCode)
                 {
                     var error = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"❌ Erreur API Groq : {error}");
-                    return new List<Mission>();
+                    throw new InvalidOperationException($"Groq HTTP {(int)response.StatusCode}: {error}");
                 }
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
@@ -163,15 +249,20 @@ Exemple de format attendu :
                 {
                     generatedText = generatedText.Replace("```json", "").Replace("```", "").Trim();
                     var missions = JsonSerializer.Deserialize<List<Mission>>(generatedText, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-                    return missions ?? new List<Mission>();
+                    if (missions == null || !missions.Any())
+                    {
+                        throw new InvalidOperationException("Groq returned empty mission list.");
+                    }
+                    return missions;
                 }
+
+                throw new InvalidOperationException("Groq returned empty content.");
             }
             catch (Exception ex)
             {
                 Console.WriteLine("❌ Erreur pendant le traitement Groq : " + ex.Message);
+                throw;
             }
-
-            return new List<Mission>();
         }
     }
 }
