@@ -70,23 +70,20 @@ builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// BLOC DE VÉRIFICATION DE LA BASE
+// Applique les migrations EF en attente (nouvelles tables / colonnes).
+// EnsureCreated() ne modifie pas une base déjà existante : sur Azure la table Friendships
+// n'était jamais créée → erreur "Invalid object name …" lors de CompleteMission (CoopStreak).
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<ApplicationDbContext>();
-
-        //  context.Database.EnsureDeleted();
-
-        // Cette commande crée la base uniquement si elle n'existe pas encore.
-        // Si elle existe déjà avec tes comptes et tes missions, elle la conserve intacte 
-        context.Database.EnsureCreated();
+        await context.Database.MigrateAsync();
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"ERREUR CRITIQUE BDD : {ex.Message}");
+        Console.WriteLine($"ERREUR CRITIQUE BDD (migrations) : {ex.Message}");
     }
 }
 
